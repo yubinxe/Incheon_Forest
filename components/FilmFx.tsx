@@ -26,6 +26,13 @@ export default function FilmFx() {
       }
       if (cine) root.dataset.cine = "1";
       else delete root.dataset.cine;
+      // 3D 투어 건너뛰기 — 필름 구간에서만 보인다
+      const skip = document.getElementById("skip-film");
+      const paper = document.querySelector<HTMLElement>(".paper");
+      if (skip && paper) {
+        if (paper.getBoundingClientRect().top < innerHeight * 0.9) skip.setAttribute("data-hidden", "");
+        else skip.removeAttribute("data-hidden");
+      }
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);

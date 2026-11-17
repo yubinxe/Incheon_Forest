@@ -141,7 +141,7 @@ export function Inputs() {
         no="04"
         group="사업수지"
         title="입력값 산출"
-        lede="02 소요자금의 공란 4개를 산정근거의 요율로 채우고, 모든 항목을 고정비 · 변동비 · 상쇄 항목으로 나눕니다. 이 표가 틀리면 이후의 모든 숫자가 틀립니다."
+        lede="원자료 「소요자금」의 공란 4개를 산정근거의 요율로 채우고, 모든 항목을 고정비 · 변동비 · 상쇄 항목으로 나눕니다. 이 표가 틀리면 이후의 모든 숫자가 틀립니다."
       />
 
       <div className="blanks">
@@ -171,7 +171,7 @@ export function Inputs() {
         </div>
         <div className="ledger-row">
           <span>상쇄 항목</span><span className="num">{m(INPUTS.offset, 2)}</span>
-          <span className="ex">중도금이자후불제 {m(b.midPaymentInterest, 2)} + 이자상환적립계정 1,872 — 01 Ⅲ-1: 시행사 선지급 후 입주 시 회수 · 만기 환입이라 유입과 지출에 같은 금액</span>
+          <span className="ex">중도금이자후불제 {m(b.midPaymentInterest, 2)} + 이자상환적립계정 1,872 — 사업계획서 Ⅲ-1: 시행사 선지급 후 입주 시 회수 · 만기 환입이라 유입과 지출에 같은 금액</span>
         </div>
         <div className="ledger-row strong">
           <span>총사업비</span><span className="num">{m(INPUTS.totalProjectCost, 2)}</span><span className="ex">고정비 + 변동비</span>
@@ -180,10 +180,10 @@ export function Inputs() {
           <span>총투자비</span><span className="num">{m(INPUTS.totalInvestment, 2)}</span><span className="ex">고정비 + 변동비 + 상쇄 항목 = 소요자금 전 항목 합계와 일치</span>
         </div>
         <div className="ledger-row">
-          <span>기타유입</span><span className="num">{m(INPUTS.otherInflow)}</span><span className="ex">시행사 출자금·대여금 22,000 + 예치금 이자수입 1,450 (01 Ⅲ-2)</span>
+          <span>기타유입</span><span className="num">{m(INPUTS.otherInflow)}</span><span className="ex">시행사 출자금·대여금 22,000 + 예치금 이자수입 1,450 (사업계획서 Ⅲ-2)</span>
         </div>
         <div className="ledger-row">
-          <span>후순위</span><span className="num">{m(INPUTS.subordinated)}</span><span className="ex">07 제9조 공사비 유보금 42,000 + 시행사 대여금 6,000 — 본PF 원리금 전액 상환 이후 지급</span>
+          <span>후순위</span><span className="num">{m(INPUTS.subordinated)}</span><span className="ex">도급계약서 제9조 공사비 유보금 42,000 + 시행사 대여금 6,000 — 본PF 원리금 전액 상환 이후 지급</span>
         </div>
       </div>
 
@@ -263,9 +263,9 @@ export function Opinion() {
               전액 회수 평당가는 {m(be0p, 1)}만원(희망 대비 {pct(be0p / hope - 1)}), 본PF 상환 한계 평당가는 {m(bePfp, 1)}만원({pct(bePfp / hope - 1)})입니다.
             </dd>
             <dt>현실화 조건</dt>
-            <dd>Ⅲ장의 인근 신규 공급평당가가 {m(be0p, 0)}만원 아래에서 형성되거나, 분양 촉진을 위한 할인이 {pct(1 - be0p / hope)}를 넘을 때 후순위(유보금·대여금)부터 손실이 납니다.</dd>
+            <dd><a href="#market">05 분양 가정의 근거</a>의 인근 신규 공급평당가가 {m(be0p, 0)}만원 아래에서 형성되거나, 분양 촉진을 위한 할인이 {pct(1 - be0p / hope)}를 넘을 때 후순위(유보금·대여금)부터 손실이 납니다.</dd>
             <dt>완화</dt>
-            <dd>분양가 확정 전 Ⅲ·Ⅴ장 신호로 재검증 · 할인분양 범위와 결정 권한을 대주단과 사전 합의 · 근린생활시설 별도 매각으로 고정 유입 확보.</dd>
+            <dd>분양가 확정 전 <a href="#market">05</a>·<a href="#signals">07</a>의 시장 신호로 재검증 · 할인분양 범위와 결정 권한을 대주단과 사전 합의 · 근린생활시설 별도 매각으로 고정 유입 확보.</dd>
           </dl>
         </li>
         <li>
@@ -292,7 +292,7 @@ export function Opinion() {
               본 현장의 후순위 유보금 42,000은 시공사 현금성자산의 {pct(42000 / F.cash[last])}에 해당합니다.
             </dd>
             <dt>현실화 조건</dt>
-            <dd>BBB− 이하 하향, 타 현장 PF 보증 현실화로 유동성이 막히면 기성 지연 → 공정 중단. 07 제3조로 착공 90일 이후 건설공사비지수 3% 이상 변동 시 공사비 증액 협의가 열려, 사업예비비 5,670(3%)을 초과하는 증액은 고정비를 직접 올립니다.</dd>
+            <dd>BBB− 이하 하향, 타 현장 PF 보증 현실화로 유동성이 막히면 기성 지연 → 공정 중단. 도급계약서 제3조로 착공 90일 이후 건설공사비지수 3% 이상 변동 시 공사비 증액 협의가 열려, 사업예비비 5,670(3%)을 초과하는 증액은 고정비를 직접 올립니다.</dd>
             <dt>완화</dt>
             <dd>신탁사 책임준공형 관리형토지신탁 또는 신용등급 A− 이상 연대 책임준공 · 등급 하향을 대체시공사 선정 트리거로 명문화 · 물가변동 조정 상한을 사업예비비 범위로 합의.</dd>
           </dl>
@@ -304,7 +304,7 @@ export function Opinion() {
         <div className="grid-2">
           <table className="tbl compact">
             <thead>
-              <tr><th>06 재무</th>{F.years.map((y) => <th key={y} className="num">{y}</th>)}</tr>
+              <tr><th>시공사 재무 (DART 발췌)</th>{F.years.map((y) => <th key={y} className="num">{y}</th>)}</tr>
             </thead>
             <tbody>
               {([
@@ -327,7 +327,7 @@ export function Opinion() {
             </tbody>
           </table>
           <ol className="verdict">
-            <li><b>손해배상형 확약에 그친다.</b> 제12조②는 기한 도과 후 6개월 유예, 미이행 시 손해배상입니다. 대주단 대출의 조건부 채무인수로 전환되는 장치가 없어, 시공사가 지급불능이면 배상청구권은 무담보 채권에 불과합니다.</li>
+            <li><b>손해배상형 확약에 그친다.</b> 도급계약서 제12조②는 기한 도과 후 6개월 유예, 미이행 시 손해배상입니다. 대주단 대출의 조건부 채무인수로 전환되는 장치가 없어, 시공사가 지급불능이면 배상청구권은 무담보 채권에 불과합니다.</li>
             <li><b>지체상금은 이자를 덮지만 상한이 있다.</b> 일 {m(dailyPenalty, 1)}(도급액 0.05%)로 본PF 월 이자 약 {m(monthlyInterest, 0)}를 넘어서나, 상한 10%({m(CONTRACT.amount * CONTRACT.delayPenaltyCap)})에 {capDays}일이면 도달합니다.</li>
             <li><b>도산 시 해지권만 있다.</b> 제12조③은 회생·워크아웃 시 해지와 대체시공을 허용할 뿐, 대체시공 비용 증가분은 시행사 부담입니다.</li>
             <li><b>미분양 매입확약이 없다.</b> 제18조로 분양 리스크는 전부 시행사와 대주단에 남습니다.</li>
@@ -340,11 +340,11 @@ export function Opinion() {
       </div>
 
       <div className="opinion-block">
-        <h3 className="h3">추진 조건</h3>
+        <h3 className="h3" id="conditions">추진 조건</h3>
         <ol className="conditions">
-          <li><b>분양 가정의 시장 여유.</b> 적용 분양가 기준 본PF 상환 한계 평당가가 Ⅲ장 인근 공급평당가보다 15% 이상 낮고, 상환 한계 분양률이 시장 계약환산 분양률보다 10%p 이상 낮을 것.</li>
+          <li><b>분양 가정의 시장 여유.</b> 적용 분양가 기준 본PF 상환 한계 평당가가 <a href="#market">05</a>의 인근 공급평당가보다 15% 이상 낮고, 상환 한계 분양률이 시장 계약환산 분양률보다 10%p 이상 낮을 것.</li>
           <li><b>책임준공 보강.</b> 신탁사 책임준공형 관리형토지신탁 또는 A− 이상 연대 책임준공, 그리고 시공사 등급 BBB− 하향 시 대체시공사 선정 트리거.</li>
-          <li><b>공사비 상한.</b> 07 제3조 물가변동 조정 누계를 사업예비비 5,670 범위로 제한.</li>
+          <li><b>공사비 상한.</b> 도급계약서 제3조 물가변동 조정 누계를 사업예비비 5,670 범위로 제한.</li>
           <li><b>분양 트리거.</b> 분양 개시 후 6개월 계약률이 상환 한계 분양률에 미달하면 할인 · 임대전환을 결정하는 절차와 할인 하한(상환 한계 평당가)을 대주단과 사전 합의.</li>
           <li><b>유동성 장치.</b> 미분양담보대출 실행조건 확정, 이자상환적립계정 3개월분 유지, 중도금 집단대출 협약 선확보.</li>
         </ol>

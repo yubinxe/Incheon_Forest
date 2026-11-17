@@ -62,3 +62,30 @@ describe("③ 두 손익분기", () => {
     expect(pf).toBeCloseTo(1410.8, 1);
   });
 });
+
+import { cashflow, UNSOLD_LOAN } from "@/lib/finance";
+
+describe("현금흐름 · 미분양담보대출 · 상가 분양률", () => {
+  it("분기 누적 마지막 값 = 기말현금", () => {
+    for (const s of [
+      { aptPerPy: HOPE_AVG_PER_PY, salesRate: 1 },
+      { aptPerPy: 1600, salesRate: 0.7 },
+      { aptPerPy: 1900, salesRate: 0.85, commercialRate: 0 },
+    ]) {
+      expect(cashflow(s).ending).toBeCloseTo(endingCash(s).cash, 6);
+    }
+  });
+  it("본PF 상환 한계 위에서는 미분양담보대출 이자 0, 아래에서는 6개월 9% 이자", () => {
+    expect(endingCash({ aptPerPy: HOPE_AVG_PER_PY, salesRate: 0.85 }).unsoldInterest).toBe(0);
+    const r = endingCash({ aptPerPy: HOPE_AVG_PER_PY, salesRate: 0.7 });
+    expect(r.unsoldDraw).toBeCloseTo(34525.86, 1);
+    expect(r.unsoldInterest).toBeCloseTo((r.unsoldDraw * UNSOLD_LOAN.rate) / 2, 6);
+    expect(endingCash({ aptPerPy: HOPE_AVG_PER_PY, salesRate: 0.4 }).unsoldDraw).toBe(40000);
+  });
+  it("상가 분양률 분리 — 손익분기 역산 일치", () => {
+    const rate = breakevenRate(HOPE_AVG_PER_PY, PF_LIMIT_TARGET, 1650, 0);
+    expect(endingCash({ aptPerPy: HOPE_AVG_PER_PY, salesRate: rate, commercialRate: 0 }).cash).toBeCloseTo(PF_LIMIT_TARGET, 6);
+    const price = breakevenPrice(0.8, 0, 1650, 0.5);
+    expect(endingCash({ aptPerPy: price, salesRate: 0.8, commercialRate: 0.5 }).cash).toBeCloseTo(0, 6);
+  });
+});

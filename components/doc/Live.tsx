@@ -20,6 +20,7 @@ import {
 } from "@/lib/finance";
 import { UNIT_TYPES } from "@/lib/project";
 import { RULES } from "@/lib/market/rules";
+import { CashFlow } from "./CashFlow";
 import { eok, m, pct, signed } from "@/lib/format";
 import { m2ToPy } from "@/lib/market/util";
 import type { Excluded } from "@/lib/market/analyze";
@@ -45,14 +46,14 @@ function Pending({ children }: { children: React.ReactNode }) {
 /* ───────── Ⅲ 분양 가정의 근거 ───────── */
 
 export function Market() {
-  const { region, setRegion, load, market, applied } = usePlan();
+  const { region, setRegion, load, market, applied, scope, setScope } = usePlan();
   const [draft, setDraft] = useState(region);
 
   return (
     <section id="market" className="doc-sec" data-shot="5">
       <SectionHead
         no="05"
-        group="시장분석"
+        group="사업수지 · 분양 가정"
         title="분양 가정의 근거"
         lede="적용 분양가와 적용 분양률은 공공데이터포털 API로만 정합니다. 서버가 지역명을 법정동코드로 확인하고, 응답은 하루 동안 캐시됩니다."
       />
@@ -74,7 +75,7 @@ export function Market() {
       {load.state === "done" && load.data.status === "no_key" && (
         <Pending>
           <b>공공데이터 인증키가 아직 서버에 설정되지 않았습니다.</b> Vercel 프로젝트 환경변수 <code>DATA_GO_KR_API_KEY</code>(zipcatch와 같은 이름) 또는 <code>DATA_GO_KR_SERVICE_KEY</code>에 공공데이터포털 일반 인증키를 넣고
-          재배포하면, 이 장과 Ⅳ·Ⅴ장의 적용값이 자동으로 채워집니다. 그전까지 적용값은 비워 두며 임의의 시장 수치를 쓰지 않습니다.
+          재배포하면, 이 장과 <a href="#thresholds">06 상환 한계선</a>·<a href="#signals">07 시장 대비 여유</a>의 적용값이 자동으로 채워집니다. 그전까지 적용값은 비워 두며 임의의 시장 수치를 쓰지 않습니다.
         </Pending>
       )}
       {load.state === "done" && load.data.status === "error" && <Pending>{"message" in load.data ? load.data.message : "오류"}</Pending>}
@@ -114,8 +115,22 @@ export function Market() {
             <Kpi label="공급평당 최고금액 중위" value={m(market.supply.median)} unit="만원" />
             <Kpi label="사분위 범위" value={`${m(market.supply.p25)} – ${m(market.supply.p75)}`} unit="만원" />
             <Kpi label="표본" value={`${market.supply.nComplexes}단지 · ${market.supply.nTypes}주택형`} />
-            <Kpi label="범위" value={market.supply.tier === "A" ? `${market.regionInfo.dong} 주소 공고` : "서구·서해구 확대"} />
+            <Kpi label="범위" value={market.scope === "wide" ? "서해구·검단구 전체" : market.supply.tier === "A" ? `${market.regionInfo.dong} 주소 공고` : "서구·서해구 확대"} />
           </div>
+          {market.supply.nComplexes <= 2 && (
+            <p className="bias">
+              <span className="badge">표본 {market.supply.nComplexes}단지</span>
+              단일 단지 편향 주의 — 한 단지의 상품(주상복합·하이엔드 등)이 시장 기준가를 좌우합니다. 여유 신호는 과대평가 방향으로 읽으십시오.
+              {scope === "near" ? (
+                <button type="button" className="link-btn" onClick={() => setScope("wide")}>검색 반경을 서해구·검단구 전체로 넓히기</button>
+              ) : (
+                <button type="button" className="link-btn" onClick={() => setScope("near")}>청라동 기준으로 되돌리기</button>
+              )}
+            </p>
+          )}
+          {market.supply.nComplexes > 2 && scope === "wide" && (
+            <p className="note"><button type="button" className="link-btn" onClick={() => setScope("near")}>청라동 기준으로 되돌리기</button></p>
+          )}
           <Meta
             n={market.supply.nTypes}
             date={market.queryDate}
@@ -157,6 +172,18 @@ export function Market() {
             <Kpi label="웃돈 중위 (최고금액 대비)" value={market.presale.premium.median === null ? "—" : signed(market.presale.premium.median)} unit="만원" />
           </div>
           <Meta n={market.presale.n} date={market.queryDate} window={market.windows.trades} excluded={[...market.presale.excluded, { reason: "코드 간 중복", count: market.presale.duplicates }]} />
+          {market.newTrades.used && (
+            <>
+              <h4 className="h4">대체 지표 — 준공 {market.newTrades.minBuildYear}년 이후 아파트 매매 실거래</h4>
+              <p className="note">분양권 표본이 3건 미만이라, 완성형 택지지구의 신축·준신축 매매가로 ‘같은 동네 새 아파트의 시장가’를 대신 읽습니다.</p>
+              <div className="kpis">
+                <Kpi label="전용평당 중위" value={m(market.newTrades.medianPerExclusivePy)} unit="만원" />
+                <Kpi label="사분위 범위" value={`${m(market.newTrades.p25)} – ${m(market.newTrades.p75)}`} unit="만원" />
+                <Kpi label="표본" value={`${market.newTrades.complexes}단지 · ${market.newTrades.n}건`} />
+              </div>
+              <Meta n={market.newTrades.n} date={market.queryDate} window={market.windows.rent} excluded={market.newTrades.excluded} />
+            </>
+          )}
 
           <h3 className="h3">② 아파트 전세 실거래 — {market.regionInfo.dong}</h3>
           <div className="kpis">
@@ -200,28 +227,35 @@ function Kpi({ label, value, unit }: { label: string; value: string; unit?: stri
 /* ───────── 계산기 (장면이 비치는 창) ───────── */
 
 export function Calculator() {
-  const { price, rate, setPrice, setRate, applied } = usePlan();
-  const r = endingCash({ aptPerPy: price, salesRate: rate });
+  const { price, rate, setPrice, setRate, applied, commRate, setCommRate } = usePlan();
+  const r = endingCash({ aptPerPy: price, salesRate: rate, commercialRate: commRate ?? undefined });
   const zone = zoneOf(r.cash);
   const label = { surplus: "후순위까지 전액 상환", subordinated: "본PF 상환 · 후순위 손실", "pf-shortfall": "본PF 미상환" }[zone];
   const presets: [string, number, number][] = [
-    ["희망가 · 100%", Math.round(HOPE_AVG_PER_PY), 1],
-    ["PF 상환 한계", Math.round(HOPE_AVG_PER_PY), Math.ceil(breakevenRate(HOPE_AVG_PER_PY, PF_LIMIT_TARGET) * 1000) / 1000],
+    ["희망가 · 100%", HOPE_AVG_PER_PY, 1],
+    ["PF 상환 한계", HOPE_AVG_PER_PY, breakevenRate(HOPE_AVG_PER_PY, PF_LIMIT_TARGET, undefined, commRate ?? undefined)],
   ];
-  if (applied?.price && applied.rate) presets.push(["적용가 · 적용률", Math.round(applied.price), applied.rate]);
+  if (applied?.price && applied.rate) presets.push(["적용가 · 적용률", applied.price, applied.rate]);
+  const commOptions: [string, number | null][] = [["아파트와 동일", null], ["100%", 1], ["50%", 0.5], ["0%", 0]];
 
   return (
     <section id="calculator" className="window-sec" data-shot="6" data-see="1">
       <div className="calc">
-        <p className="eyebrow">창 하나가 한 세대입니다</p>
+        <p className="eyebrow">05-1 분양률 계산기 · 창 하나가 한 세대입니다</p>
         <h2>불이 켜진 만큼 팔렸습니다</h2>
         <div className="slider">
           <label htmlFor="rate">분양률 <output>{pct(rate)}</output></label>
-          <input id="rate" type="range" min={0.4} max={1} step={0.001} value={rate} onChange={(e) => setRate(Number(e.target.value))} />
+          <input id="rate" type="range" min={0.4} max={1} step="any" value={rate} onChange={(e) => setRate(Math.round(Number(e.target.value) * 1000) / 1000)} />
         </div>
         <div className="slider">
-          <label htmlFor="price">아파트 평균 공급평당가 <output>{m(price)}만원</output></label>
-          <input id="price" type="range" min={1200} max={2100} step={1} value={price} onChange={(e) => setPrice(Number(e.target.value))} />
+          <label htmlFor="price">아파트 평균 공급평당가 <output>{m(price, Number.isInteger(price) ? 0 : 1)}만원</output></label>
+          <input id="price" type="range" min={1200} max={2600} step="any" value={price} onChange={(e) => setPrice(Math.round(Number(e.target.value)))} />
+        </div>
+        <div className="seg" role="group" aria-label="근린생활시설 분양률">
+          <span className="seg-label">상가 분양률</span>
+          {commOptions.map(([n, v]) => (
+            <button key={n} type="button" aria-pressed={commRate === v} className={commRate === v ? "on" : ""} onClick={() => setCommRate(v)}>{n}</button>
+          ))}
         </div>
         <div className="presets">
           {presets.map(([n, p, s]) => (
@@ -238,6 +272,11 @@ export function Calculator() {
           <div><dt>지출 (상쇄 포함)</dt><dd>{eok(r.outflow)}</dd></div>
           <div><dt>후순위 회수</dt><dd>{pct(Math.max(0, Math.min(1, (r.cash - PF_LIMIT_TARGET) / -PF_LIMIT_TARGET)))}</dd></div>
         </dl>
+        {r.unsoldDraw > 0 && (
+          <p className="r-loan">
+            미분양담보대출 인출 {eok(r.unsoldDraw)} · 추가 이자 {eok(r.unsoldInterest, 1)} (연 9.0%, 6개월){r.unsoldDraw >= 40000 ? " — 한도 400억 소진" : ""}
+          </p>
+        )}
       </div>
     </section>
   );
@@ -246,25 +285,26 @@ export function Calculator() {
 /* ───────── Ⅳ 상환 한계선 ───────── */
 
 export function Thresholds() {
-  const { applied } = usePlan();
+  const { applied, commRate } = usePlan();
+  const cr = commRate ?? undefined;
   const hope = HOPE_AVG_PER_PY;
   const ap = applied?.price ?? null;
   const ar = applied?.rate ?? null;
 
   const rows: { label: string; base: string; zero: string; pf: string; note?: string }[] = [
-    { label: "분양률 (희망가 고정)", base: `${m(hope, 1)}만원`, zero: pct(breakevenRate(hope, 0), 2), pf: pct(breakevenRate(hope, PF_LIMIT_TARGET), 2) },
-    { label: "평당가 (분양률 100%)", base: "100%", zero: `${m(breakevenPrice(1, 0), 1)}만원`, pf: `${m(breakevenPrice(1, PF_LIMIT_TARGET), 1)}만원` },
+    { label: "분양률 (희망가 고정)", base: `${m(hope, 1)}만원`, zero: pct(breakevenRate(hope, 0, undefined, cr), 2), pf: pct(breakevenRate(hope, PF_LIMIT_TARGET, undefined, cr), 2) },
+    { label: "평당가 (분양률 100%)", base: "100%", zero: `${m(breakevenPrice(1, 0, undefined, cr), 1)}만원`, pf: `${m(breakevenPrice(1, PF_LIMIT_TARGET, undefined, cr), 1)}만원` },
     {
       label: "분양률 (적용가 고정)",
       base: ap ? `${m(ap, 1)}만원` : "—",
-      zero: ap ? pct(breakevenRate(ap, 0), 2) : "대기",
-      pf: ap ? pct(breakevenRate(ap, PF_LIMIT_TARGET), 2) : "대기",
+      zero: ap ? pct(breakevenRate(ap, 0, undefined, cr), 2) : "대기",
+      pf: ap ? pct(breakevenRate(ap, PF_LIMIT_TARGET, undefined, cr), 2) : "대기",
     },
     {
       label: "평당가 (적용률 고정)",
       base: ar ? pct(ar) : "—",
-      zero: ar ? `${m(breakevenPrice(ar, 0), 1)}만원` : "대기",
-      pf: ar ? `${m(breakevenPrice(ar, PF_LIMIT_TARGET), 1)}만원` : "대기",
+      zero: ar ? `${m(breakevenPrice(ar, 0, undefined, cr), 1)}만원` : "대기",
+      pf: ar ? `${m(breakevenPrice(ar, PF_LIMIT_TARGET, undefined, cr), 1)}만원` : "대기",
     },
   ];
 
@@ -278,7 +318,7 @@ export function Thresholds() {
     if (ar) set.add(Math.round(ar * 1000) / 1000);
     return [...set].sort((a, b) => b - a);
   }, [ar]);
-  const grid = sensitivity(prices, rates);
+  const grid = sensitivity(prices, rates, cr);
 
   return (
     <section id="thresholds" className="doc-sec" data-shot="5">
@@ -300,7 +340,8 @@ export function Thresholds() {
       </table>
       <p className="note">
         기말현금 = s × [아파트 분양수입 × (1 − 0.8%) + 근생 분양수입 − 300만원 × 612] + 기타유입 {m(INPUTS.otherInflow)} − 고정비 {m(INPUTS.fixed, 0)}. 상쇄 항목은 유입·지출 양쪽에 같은 금액이라 소거됩니다.
-        근린생활시설은 희망가 1,650만원에 고정하고 아파트 평균가만 움직였습니다. 금융비용은 분양 속도와 무관하게 고정으로 두었습니다.
+        근린생활시설은 희망가 1,650만원에 고정하고 아파트 평균가만 움직였습니다. 상가 분양률은 계산기에서 고른 값({commRate === null ? "아파트와 동일" : pct(commRate, 0)})을 따릅니다.
+        금융비용은 분양 속도와 무관하게 고정이며, 본PF 미상환분이 생기면 미분양담보대출(한도 400억, 연 9.0%, 6개월) 이자가 추가로 차감되어 손실이 비선형으로 커집니다.
       </p>
 
       <h3 className="h3">2축 민감도 — 기말현금 (억원)</h3>
@@ -344,6 +385,8 @@ export function Thresholds() {
           </tbody>
         </table>
       </div>
+
+      <CashFlow />
     </section>
   );
 }
@@ -354,6 +397,8 @@ export function Signals() {
   const { market, applied } = usePlan();
   const hope = HOPE_AVG_PER_PY;
   const rate = applied?.rate ?? 1;
+  const usePre = (market?.presale.n ?? 0) >= 3;
+  const nt = market?.newTrades;
   const pfPrice = breakevenPrice(rate, PF_LIMIT_TARGET);
   const zeroPrice = breakevenPrice(rate, 0);
   const pfRate = breakevenRate(applied?.price ?? hope, PF_LIMIT_TARGET);
@@ -384,14 +429,21 @@ export function Signals() {
     good: conv !== null ? conv - pfRate >= 0.1 : null,
     basis: "경쟁률은 계약률이 아니므로 접수 충족률에 계약 환산 계수를 곱해 비교. 미분양은 초기 계약에서 결정되므로 1·2순위 결과를 기준으로 삼음.",
   });
-  const pre = market?.presale.medianPerExclusivePy ?? null;
+  const ntOk = !!nt?.used && (nt.n ?? 0) >= 3;
+  const pre = usePre ? market!.presale.medianPerExclusivePy : ntOk ? nt!.medianPerExclusivePy : null;
   s.push({
-    name: "상환 한계가(전용 환산) vs 분양권 전용평당 실거래",
+    name: usePre || !ntOk ? "상환 한계가(전용 환산) vs 분양권 전용평당 실거래" : `상환 한계가(전용 환산) vs 준공 ${nt!.minBuildYear}년 이후 매매 실거래`,
     ours: `${m(pfPerExclusive, 0)}만원/전용평 (84㎡A · 공급/전용 ${ratio84.toFixed(3)})`,
-    market: pre ? `${m(pre)}만원 · ${market!.presale.n}건` : market ? `${market.regionInfo.dong} 분양권 거래 0건 (${market.windows.trades})` : "대기",
+    market: pre
+      ? usePre
+        ? `${m(pre)}만원 · 분양권 ${market!.presale.n}건`
+        : `${m(pre)}만원 · ${nt!.complexes}단지 ${nt!.n}건 (분양권 ${market!.presale.n}건이라 대체)`
+      : market
+        ? `${market.regionInfo.dong} 분양권 ${market.presale.n}건 · 대체 매매 ${nt?.n ?? 0}건`
+        : "대기",
     margin: pre ? pct(1 - pfPerExclusive / pre) : "—",
     good: pre ? 1 - pfPerExclusive / pre >= 0.15 : null,
-    basis: "분양권 시세는 ‘지금 이 동네 신축을 얼마에 사는가’의 시장가. 실거래는 전용면적 기준이라 03의 전용/공급 비율로 환산.",
+    basis: "분양권(또는 신축·준신축 매매) 시세는 ‘지금 이 동네 새 아파트를 얼마에 사는가’의 시장가. 실거래는 전용면적 기준이라 분양계획의 전용/공급 비율로 환산.",
   });
   const j84 = market?.rent.median84 ?? null;
   const need = unit84AtApplied * 0.9;
@@ -431,7 +483,7 @@ export function Signals() {
           </li>
         ))}
       </ol>
-      <p className="note">전액 회수(기말현금 0) 평당가는 같은 분양률에서 {m(zeroPrice, 0)}만원입니다. 여유가 기준선 미만인 신호는 Ⅵ장 추진 조건 1과 연결됩니다.</p>
+      <p className="note">전액 회수(기말현금 0) 평당가는 같은 분양률에서 {m(zeroPrice, 0)}만원입니다. 여유가 기준선 미만인 신호는 <a href="#conditions">08 추진 조건 1</a>과 연결됩니다.</p>
     </section>
   );
 }
@@ -448,12 +500,12 @@ export function Verify() {
 
   return (
     <section id="verify" className="doc-sec" data-shot="5">
-      <SectionHead no="09" group="검토의견" title="검증 로그와 보안 점검" lede="1회차 검증 3종은 페이지가 열릴 때마다 같은 계산 엔진으로 다시 계산됩니다. npm test에도 같은 단언이 들어 있습니다." />
+      <SectionHead no="09" group="검토의견" title="검증 로그와 보안 점검" lede="1회차 검증 3종은 페이지가 열릴 때마다 같은 계산 엔진으로 다시 계산됩니다. 보안 점검과 API 호출 기록은 아래 개발·검증 노트에 접어 두었습니다." />
       <ol className="checks">
         <li className="pass">
           <h4>표본 3셀 대조 — 세대당 분양가 = 공급면적 × 평당가 ÷ 100</h4>
           <table className="tbl compact">
-            <thead><tr><th>타입</th><th className="num">공급평</th><th className="num">평당가</th><th className="num">계산</th><th className="num">01 Ⅳ 표</th></tr></thead>
+            <thead><tr><th>타입</th><th className="num">공급평</th><th className="num">평당가</th><th className="num">계산</th><th className="num">원자료 사업계획서 Ⅳ</th></tr></thead>
             <tbody>
               {cells.map((c, i) => (
                 <tr key={c.type}><td>{c.type}</td><td className="num">{c.supplyPy}</td><td className="num">{m(c.perPy)}</td><td className="num">{m(c.perUnit, 2)}</td><td className="num">{[465, 558, 611][i]}</td></tr>
@@ -463,7 +515,7 @@ export function Verify() {
         </li>
         <li className={sumOk ? "pass" : "fail"}>
           <h4>합계 일치 — 총투자비 = 고정비 + 변동비 + 상쇄 항목</h4>
-          <p className="mono">{m(INPUTS.fixed, 2)} + {m(INPUTS.variable, 2)} + {m(INPUTS.offset, 2)} = {m(INPUTS.totalInvestment, 2)} {sumOk ? "= 소요자금 {INPUTS.items.length}개 항목 합계 ✓" : "✗"}</p>
+          <p className="mono">{m(INPUTS.fixed, 2)} + {m(INPUTS.variable, 2)} + {m(INPUTS.offset, 2)} = {m(INPUTS.totalInvestment, 2)} {sumOk ? `= 소요자금 ${INPUTS.items.length}개 항목 합계 ✓` : "✗"}</p>
         </li>
         <li className={Math.abs(hand - calc) < 1e-6 ? "pass" : "fail"}>
           <h4>역산 확인 — 희망가 · 분양률 100%</h4>
@@ -473,7 +525,8 @@ export function Verify() {
         </li>
       </ol>
 
-      <h3 className="h3">보안 점검</h3>
+      <details className="fold devnotes">
+        <summary>개발·검증 노트 — 보안 점검 · API 호출 로그 (인증키 상태: {keyState})</summary>
       <ul className="sec-list">
         <li>인증키 상태: <b>{keyState}</b> — <code>DATA_GO_KR_SERVICE_KEY</code> · <code>DATA_GO_KR_API_KEY</code>는 <code>.env.local</code>과 Vercel 환경변수에만 둡니다. <code>NEXT_PUBLIC_</code> 접두사 미사용.</li>
         <li>공공데이터 호출은 <code>app/api/market</code> 라우트(서버)에서만 · <code>server-only</code>로 클라이언트 번들 유입 차단.</li>
@@ -484,7 +537,7 @@ export function Verify() {
 
       {market && (
         <>
-          <h3 className="h3">API 호출 로그 — {market.fetchedAt}</h3>
+          <h4 className="h4">API 호출 로그 — {market.fetchedAt}</h4>
           <table className="tbl compact">
             <thead><tr><th>출처</th><th className="num">호출</th><th className="num">행</th><th>오류</th></tr></thead>
             <tbody>
@@ -495,6 +548,7 @@ export function Verify() {
           </table>
         </>
       )}
+      </details>
       <p className="note">평균 공급평당가 {m(HOPE_AVG_PER_PY, 2)} = 아파트 분양수입 {m(HOPE_APT_REVENUE, 2)} × 100 ÷ 공급면적 {m(TOTAL_SUPPLY_PY, 1)}평. 전용평 환산은 {m2ToPy(84.91).toFixed(2)}평(84.91㎡) 등 1평 = 3.305785㎡.</p>
     </section>
   );

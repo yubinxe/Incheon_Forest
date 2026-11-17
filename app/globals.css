@@ -149,8 +149,8 @@ code, .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; fon
 main { position: relative; z-index: 2; }
 
 /* ───────── 히어로 ───────── */
-.film { position: relative; min-height: 170vh; color: #fff; padding: 0 var(--gutter); }
-.film-cover { min-height: 150vh; }
+.film { position: relative; min-height: 112vh; color: #fff; padding: 0 var(--gutter); }
+.film-cover { min-height: 118vh; }
 .cover-inner {
   position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; justify-content: center;
   padding: calc(var(--gnb-h) + 4vh) 0 22vh; max-width: var(--wrap); margin: 0 auto;
@@ -617,4 +617,79 @@ html[data-cine="1"] .letterbox { height: 5.5vh; }
   .film-big { font-size: 50px; }
   .film-dl div { font-size: 16px; padding: 10px 0; }
   .film-kicker { font-size: 15px; margin-bottom: 10px; }
+}
+
+/* ───────── 2차 보강: 히어로 대비 · 건너뛰기 ───────── */
+.film-cover::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(8, 14, 26, 0.62) 0%, rgba(8, 14, 26, 0.38) 38%, rgba(8, 14, 26, 0) 64%),
+    linear-gradient(0deg, rgba(8, 14, 26, 0.55) 0%, rgba(8, 14, 26, 0) 42%);
+}
+.film-cover h1, .cover-sub, .cover-kicker { text-shadow: 0 2px 22px rgba(4, 8, 16, 0.45); }
+.btn-ghost { background: rgba(8, 14, 26, 0.45); }
+.skip-film {
+  position: fixed; right: var(--gutter); bottom: 28px; z-index: 15;
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 11px 18px; font-size: 15px; font-weight: 600; color: #fff; text-decoration: none;
+  background: rgba(10, 18, 32, 0.78); border: 1px solid rgba(214, 195, 155, 0.55);
+  transition: opacity .5s var(--ease), transform .5s var(--ease), border-color .25s;
+}
+.skip-film:hover { border-color: var(--gold-soft); }
+.skip-film[data-hidden] { opacity: 0; transform: translateY(12px); pointer-events: none; }
+
+/* 표본 편향 · 링크 버튼 · 소제목 */
+.h4 { margin: 28px 0 10px; font-size: 16.5px; font-weight: 700; color: var(--navy); }
+.bias { margin: 14px 0 0; padding: 14px 18px; background: #fbf4e4; border-left: 3px solid var(--z-sub); font-size: 15px; line-height: 1.7; }
+.badge { display: inline-block; margin-right: 10px; padding: 2px 9px; font-size: 13px; font-weight: 700; color: #fff; background: var(--z-sub); vertical-align: 1px; }
+.link-btn { display: inline; margin-left: 8px; padding: 0; border: 0; background: none; font: inherit; font-weight: 700; color: var(--navy); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.link-btn:hover { color: var(--gold-ink); }
+.doc-sec a:not(.btn) { color: var(--navy); text-underline-offset: 3px; }
+
+/* 계산기 — 상가 분양률 · 미분양담보대출 */
+.seg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 16px; }
+.seg-label { font-size: 14px; color: rgba(255, 255, 255, 0.78); margin-right: 6px; }
+.seg button { font: inherit; font-size: 14px; font-weight: 600; color: rgba(255, 255, 255, 0.86); background: transparent; border: 1px solid rgba(255, 255, 255, 0.28); padding: 6px 11px; cursor: pointer; transition: background .2s, border-color .2s; }
+.seg button.on { background: rgba(214, 195, 155, 0.22); border-color: var(--gold-soft); color: #fff; }
+.r-loan { margin: 14px 0 0; padding-top: 12px; border-top: 1px dashed rgba(255, 255, 255, 0.22); font-size: 14px; color: #f1b9a8; }
+
+/* 개발·검증 노트 */
+.devnotes summary { color: var(--muted); }
+
+/* 분기 현금흐름 */
+.cf { margin-top: 56px; }
+.cf-kpis { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--rule-strong); }
+.cf-kpis > div { display: flex; flex-direction: column; gap: 4px; padding: 16px 16px 16px 0; border-bottom: 1px solid var(--rule); }
+.cf-kpis > div + div { padding-left: 16px; border-left: 1px solid var(--rule); }
+.cf-kpis span { font-size: 13.5px; color: var(--muted); }
+.cf-kpis b { font-family: var(--serif); font-size: 24px; color: var(--navy); font-variant-numeric: tabular-nums; }
+.cf-kpis small { font-size: 13px; color: var(--muted); }
+.cf-legend { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 0 6px; font-size: 14px; color: var(--muted); }
+.cf-legend span { display: inline-flex; align-items: center; gap: 8px; }
+.lg-line { width: 18px; height: 2px; background: var(--navy); }
+.lg-bar { width: 10px; height: 10px; background: #c9bfae; border-radius: 2px; }
+.lg-cap { width: 18px; height: 0; border-top: 2px dashed var(--gold); }
+.cf-chart { position: relative; }
+.cf-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.cf-grid { stroke: rgba(14, 26, 46, 0.08); }
+.cf-zero { stroke: rgba(14, 26, 46, 0.45); }
+.cf-axis { font-size: 12px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.cf-bar { fill: #c9bfae; }
+.cf-bar.up { fill: #9fb3cf; }
+.cf-cap { fill: none; stroke: var(--gold); stroke-width: 2; stroke-dasharray: 6 5; }
+.cf-line { fill: none; stroke: var(--navy); stroke-width: 2.5; stroke-linejoin: round; }
+.cf-dot { fill: var(--navy); stroke: var(--paper); stroke-width: 2; }
+.cf-dot.peak { fill: var(--z-short); }
+.cf-peak { font-size: 13px; font-weight: 700; fill: var(--z-short); }
+.cf-cross { stroke: rgba(14, 26, 46, 0.35); stroke-dasharray: 3 3; }
+.cf-tip {
+  position: absolute; top: 8px; transform: translateX(-50%); pointer-events: none;
+  display: grid; gap: 2px; padding: 10px 12px; min-width: 150px;
+  background: var(--ink); color: #fff; font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.cf-tip b { font-size: 13.5px; color: var(--gold-soft); }
+@media (max-width: 760px) {
+  .cf-kpis { grid-template-columns: 1fr 1fr; }
+  .cf-kpis > div:nth-child(3) { padding-left: 0; border-left: 0; }
+  .skip-film { bottom: 18px; padding: 9px 14px; font-size: 14px; }
 }

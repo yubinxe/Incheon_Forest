@@ -2,6 +2,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import {
   analyzeCompetition,
+  analyzeNewTrades,
   analyzePresale,
   analyzeRent,
   classifyNotices,
@@ -28,6 +29,22 @@ function serviceKey(): string | null {
   return k.includes("%") ? k : encodeURIComponent(k);
 }
 
+const GATEWAY_REASONS: Record<string, string> = {
+  SERVICE_KEY_IS_NOT_REGISTERED_ERROR: "활용신청되지 않은 서비스",
+  LIMITED_NUMBER_OF_SERVICE_REQUESTS_PER_SECOND_EXCEEDS_ERROR: "초당 호출 한도 초과",
+  LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR: "일일 호출 한도 초과",
+  SERVICE_ACCESS_DENIED_ERROR: "접근 거부",
+  DEADLINE_HAS_EXPIRED_ERROR: "활용기간 만료",
+  UNREGISTERED_IP_ERROR: "등록되지 않은 IP",
+  NO_OPENAPI_SERVICE_ERROR: "서비스 없음",
+};
+
+export function friendlyError(status: number, body: string): string {
+  const code = /(?:errMsg|returnAuthMsg)["']?\s*[:>]\s*["']?([A-Z_]{8,})/.exec(body)?.[1];
+  const reason = code ? GATEWAY_REASONS[code] ?? "공공데이터 게이트웨이 오류" : status >= 500 ? "공공데이터 서버 오류" : "요청 거부";
+  return `${reason} (HTTP ${status})`;
+}
+
 class SourceError extends Error {
   constructor(public source: string, message: string) {
     super(message);
@@ -52,9 +69,9 @@ async function getText(url: string, source: string): Promise<string> {
   }
   if (!res) throw new SourceError(source, "응답 없음");
   if (!res.ok) {
-    // 게이트웨이 사유(미승인·키 오류 등)를 함께 남긴다 — 응답 본문에는 키가 없다
-    const hint = body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
-    throw new SourceError(source, `HTTP ${res.status}${hint ? ` — ${hint}` : ""}`);
+    // 원문(JSON/XML)은 서버 로그로만 — 화면에는 정제된 사유만 노출한다 (응답 본문에 키는 없다)
+    console.error(`[market] ${source} HTTP ${res.status}: ${body.slice(0, 300)}`);
+    throw new SourceError(source, friendlyError(res.status, body));
   }
   return body;
 }
@@ -169,9 +186,14 @@ const discoverSgg = unstable_cache(
 
 /* ───────── ①② 국토교통부 실거래가 ───────── */
 
-async function fetchRtms(key: string, svc: "SilvTrade" | "AptRent", code: string, ym: string) {
-  const op = svc === "SilvTrade" ? "RTMSDataSvcSilvTrade/getRTMSDataSvcSilvTrade" : "RTMSDataSvcAptRent/getRTMSDataSvcAptRent";
-  const source = svc === "SilvTrade" ? "분양권전매" : "전월세";
+const RTMS = {
+  SilvTrade: { op: "RTMSDataSvcSilvTrade/getRTMSDataSvcSilvTrade", source: "분양권전매" },
+  AptRent: { op: "RTMSDataSvcAptRent/getRTMSDataSvcAptRent", source: "전월세" },
+  AptTrade: { op: "RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade", source: "아파트매매" },
+} as const;
+
+async function fetchRtms(key: string, svc: keyof typeof RTMS, code: string, ym: string) {
+  const { op, source } = RTMS[svc];
   const items: Record<string, string>[] = [];
   let page = 1;
   for (;;) {
@@ -217,7 +239,9 @@ async function noticesSince(key: string, path: string, since: string, area?: str
 
 export type SourceLog = { source: string; calls: number; rows: number; error?: string };
 
-export async function buildMarket(region: string) {
+export type Scope = "near" | "wide";
+
+export async function buildMarket(region: string, scope: Scope = "near") {
   const key = serviceKey();
   const fetchedAt = kstDateTime();
   if (!key) return { status: "no_key" as const, fetchedAt, region };
@@ -267,7 +291,7 @@ export async function buildMarket(region: string) {
     reg = {
       ...fb,
       warnings: [
-        `법정동코드 API 실패(${msg}) — 정적 코드표 + 실거래 탐색으로 대체`,
+        `법정동코드 API 이용 불가 — ${msg}. 실거래 탐색으로 시군구코드를 대체 확인했습니다`,
         probe.length ? `탐색 결과 ${fb.dong} 거래 코드: ${probe.map((h) => h.code).join(", ")}` : `실거래 탐색에서 ${fb.dong} 거래 코드를 찾지 못함`,
         ...fb.warnings,
       ],
@@ -286,6 +310,8 @@ export async function buildMarket(region: string) {
   const notices = await safe("청약홈 분양정보", () =>
     noticesSince(key, "ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancDetail", since24, "인천"),
   );
+  // 검색 반경 확대 — 개편 전 서구 전체(서해구·검단구)
+  if (scope === "wide") for (const k of ["서해구", "검단구", "서구"]) if (!reg.sggKeywords.includes(k)) reg.sggKeywords.push(k);
   const cls = classifyNotices(notices, reg.dong, reg.sggKeywords);
 
   const loadTypes = async (rows: NoticeRow[]) => {
@@ -312,7 +338,7 @@ export async function buildMarket(region: string) {
   let comp: CompetitionType[] = a.comp;
   let exArea = a.exArea;
   let exMissing = a.exMissing;
-  if (a.types.length < 3) {
+  if (a.types.length < 3 || scope === "wide") {
     const b = await loadTypes(cls.tierB);
     tier = "B";
     types = [...a.types, ...b.types];
@@ -360,6 +386,20 @@ export async function buildMarket(region: string) {
   const presaleDeduped = dedupe(presaleRows);
   const rentDeduped = dedupe(rentRows);
 
+  // 분양권 표본이 3건 미만이면 준공 10년 이내 아파트 매매로 대체 지표를 만든다
+  const presaleN = presaleDeduped.filter((r) => r.umdNm?.trim() === reg.dong).length;
+  let newTrades: ReturnType<typeof analyzeNewTrades> & { raw: number; used: boolean } = { ...analyzeNewTrades([], reg.dong), raw: 0, used: false };
+  if (presaleN < 3) {
+    const active = reg.codes.filter((c) => c.source !== "legacy");
+    const codes = (active.length ? active : reg.codes).map((c) => c.code);
+    const tradeRows: Record<string, string>[] = [];
+    await mapLimit(codes.flatMap((code) => months6.map((ym) => ({ code, ym }))), 2, async ({ code, ym }) => {
+      tradeRows.push(...(await safe("아파트매매", () => fetchRtms(key, "AptTrade", code, ym))));
+    });
+    const deduped = dedupe(tradeRows);
+    newTrades = { ...analyzeNewTrades(deduped, reg.dong), raw: tradeRows.length, used: true };
+  }
+
   verification.sort((x, y) => (x.code + y.ym).localeCompare(y.code + x.ym) || y.ym.localeCompare(x.ym));
 
   return {
@@ -372,6 +412,8 @@ export async function buildMarket(region: string) {
     verification,
     presale: { ...analyzePresale(presaleDeduped, reg.dong, types), raw: presaleRows.length, duplicates: presaleRows.length - presaleDeduped.length },
     rent: { ...analyzeRent(rentDeduped, reg.dong), raw: rentRows.length, duplicates: rentRows.length - rentDeduped.length },
+    newTrades,
+    scope,
     supply: {
       tier,
       tierACount: cls.tierA.length,

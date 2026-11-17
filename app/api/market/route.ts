@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
-import { buildMarket } from "@/lib/market/service";
+import { buildMarket, type Scope } from "@/lib/market/service";
 import { sanitizeRegion } from "@/lib/market/util";
 import { rawDataPortalKey } from "@/lib/market/key";
 
@@ -16,15 +16,15 @@ class Uncacheable extends Error {
 
 // 성공 응답만 하루 캐시 — 실패는 캐시하지 않고 다음 요청에서 재시도
 const cached = unstable_cache(
-  async (region: string) => {
-    const r = await buildMarket(region);
+  async (region: string, scope: Scope) => {
+    const r = await buildMarket(region, scope);
     if (r.status !== "ok") throw new Uncacheable(r);
     // 일부 출처 오류(429 등)가 있거나 실거래가 비어 있으면 캐시하지 않고 다음 요청에서 다시 받는다
-    const partial = r.logs.some((l) => l.error && l.source !== "법정동코드") || r.presale.raw + r.rent.raw === 0;
+    const partial = r.logs.some((l) => l.error && l.source !== "법정동코드" && l.source !== "아파트매매") || r.presale.raw + r.rent.raw === 0;
     if (partial) throw new Uncacheable(r);
     return r;
   },
-  ["market-v3"],
+  ["market-v4"],
   { revalidate: 86400, tags: ["market"] },
 );
 
@@ -33,11 +33,12 @@ export async function GET(req: NextRequest) {
   if (!region) {
     return NextResponse.json({ status: "bad_request", message: "지역명은 한글·숫자·공백 40자 이내" }, { status: 400 });
   }
+  const scope: Scope = req.nextUrl.searchParams.get("scope") === "wide" ? "wide" : "near";
   if (!rawDataPortalKey()) {
     return NextResponse.json({ status: "no_key", region }, { headers: { "Cache-Control": "no-store" } });
   }
   try {
-    const data = await cached(region);
+    const data = await cached(region, scope);
     return NextResponse.json(data, {
       headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" },
     });

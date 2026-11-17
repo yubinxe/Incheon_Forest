@@ -21,6 +21,11 @@ type Ctx = {
   applied: Applied | null;
   price: number;
   rate: number;
+  /** 근린생활시설 분양률 — null 이면 아파트 분양률과 동일 */
+  commRate: number | null;
+  setCommRate: (v: number | null) => void;
+  scope: "near" | "wide";
+  setScope: (v: "near" | "wide") => void;
   setPrice: (v: number) => void;
   setRate: (v: number) => void;
 };
@@ -36,13 +41,15 @@ export function usePlan() {
 export function PlanProvider({ children }: { children: React.ReactNode }) {
   const [region, setRegionState] = useState(DEFAULT_REGION);
   const [load, setLoad] = useState<Load>({ state: "loading" });
-  const [price, setPrice] = useState(Math.round(HOPE_AVG_PER_PY));
+  const [price, setPrice] = useState(HOPE_AVG_PER_PY); // 반올림하지 않은 가중평균 — 본문 수치와 1백만원 단위까지 일치
+  const [commRate, setCommRate] = useState<number | null>(null);
+  const [scope, setScope] = useState<"near" | "wide">("near");
   const [rate, setRate] = useState(1);
 
-  const fetchMarket = useCallback(async (r: string) => {
+  const fetchMarket = useCallback(async (r: string, sc: "near" | "wide") => {
     setLoad({ state: "loading" });
     try {
-      const res = await fetch(`/api/market?region=${encodeURIComponent(r)}`);
+      const res = await fetch(`/api/market?region=${encodeURIComponent(r)}${sc === "wide" ? "&scope=wide" : ""}`);
       const json = await res.json();
       if (!res.ok && json?.status !== "no_key") throw new Error(json?.message ?? `HTTP ${res.status}`);
       setLoad({ state: "done", data: json });
@@ -52,8 +59,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    fetchMarket(region);
-  }, [region, fetchMarket]);
+    fetchMarket(region, scope);
+  }, [region, scope, fetchMarket]);
 
   useEffect(() => setLiveLit(rate), [rate]);
 
@@ -72,8 +79,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   }, [market]);
 
   const value = useMemo<Ctx>(
-    () => ({ region, setRegion: setRegionState, load, market, applied, price, rate, setPrice, setRate }),
-    [region, load, market, applied, price, rate],
+    () => ({ region, setRegion: setRegionState, load, market, applied, price, rate, setPrice, setRate, commRate, setCommRate, scope, setScope }),
+    [region, load, market, applied, price, rate, commRate, scope],
   );
   return <PlanCtx.Provider value={value}>{children}</PlanCtx.Provider>;
 }

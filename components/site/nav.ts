@@ -9,25 +9,23 @@ export const NAV: NavItem[] = [
     label: "사업수지",
     href: "#inputs",
     children: [
-      { label: "입력값 산출", href: "#inputs" },
-      { label: "분양률 계산기", href: "#calculator" },
-      { label: "상환 한계", href: "#thresholds" },
+      { label: "04 입력값 산출", href: "#inputs" },
+      { label: "05 분양 가정의 근거", href: "#market" },
+      { label: "05-1 분양률 계산기", href: "#calculator" },
+      { label: "06 상환 한계선", href: "#thresholds" },
     ],
   },
   {
     label: "시장분석",
-    href: "#market",
-    children: [
-      { label: "분양 가정의 근거", href: "#market" },
-      { label: "시장 대비 여유", href: "#signals" },
-    ],
+    href: "#signals",
+    children: [{ label: "07 시장 대비 여유", href: "#signals" }],
   },
   {
     label: "검토의견",
     href: "#opinion",
     children: [
-      { label: "리스크와 의견", href: "#opinion" },
-      { label: "검증 로그", href: "#verify" },
+      { label: "08 리스크와 의견", href: "#opinion" },
+      { label: "09 검증 로그", href: "#verify" },
     ],
   },
 ];

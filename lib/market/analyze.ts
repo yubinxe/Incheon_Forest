@@ -221,3 +221,39 @@ export function summarizeCompetition(types: CompetitionType[]) {
     fillRatio: supply > 0 ? filled / supply : null,
   };
 }
+
+/* ───────── ① 대체: 준공 10년 이내 아파트 매매 (분양권 표본 부족 시) ───────── */
+
+export function analyzeNewTrades(rows: Record<string, string>[], dong: string, maxAge = 10, now = new Date()) {
+  const ex = { otherDong: 0, cancelled: 0, old: 0, area: 0, invalid: 0 };
+  const per: number[] = [];
+  const minYear = now.getFullYear() - maxAge;
+  const complexes = new Set<string>();
+  for (const r of rows) {
+    if ((r.umdNm ?? "").trim() !== dong) { ex.otherDong++; continue; }
+    if ((r.cdealType ?? "").trim() === "O") { ex.cancelled++; continue; }
+    const by = toNum(r.buildYear);
+    if (!Number.isFinite(by) || by < minYear) { ex.old++; continue; }
+    const area = toNum(r.excluUseAr);
+    const amt = toNum(r.dealAmount);
+    if (!Number.isFinite(area) || !Number.isFinite(amt) || amt <= 0) { ex.invalid++; continue; }
+    if (area < 50 || area > 100) { ex.area++; continue; }
+    per.push(amt / m2ToPy(area));
+    complexes.add(r.aptNm ?? "");
+  }
+  return {
+    n: per.length,
+    complexes: complexes.size,
+    minBuildYear: minYear,
+    medianPerExclusivePy: median(per),
+    p25: quantile(per, 0.25),
+    p75: quantile(per, 0.75),
+    excluded: [
+      { reason: `${dong} 외 법정동`, count: ex.otherDong },
+      { reason: "해제 거래", count: ex.cancelled },
+      { reason: `${minYear}년 이전 준공`, count: ex.old },
+      { reason: "전용 50㎡ 미만·100㎡ 초과", count: ex.area },
+      { reason: "금액·면적 결측", count: ex.invalid },
+    ] as Excluded,
+  };
+}
