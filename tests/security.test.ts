@@ -36,7 +36,7 @@ describe("보안 점검", () => {
     }
   });
   it("빌드 산출물에 실제 키 문자열 0건 (키가 설정된 환경에서만)", () => {
-    const key = process.env.DATA_GO_KR_SERVICE_KEY;
+    const key = process.env.DATA_GO_KR_SERVICE_KEY || process.env.DATA_GO_KR_API_KEY || process.env.PUBLIC_DATA_API_KEY;
     const out = join(ROOT, ".next/static");
     if (!key || !existsSync(out)) return;
     const hits = files(out).filter((f) => readFileSync(f, "utf8").includes(key));
@@ -44,5 +44,21 @@ describe("보안 점검", () => {
   });
   it("vercel.json 서울 리전", () => {
     expect(JSON.parse(readFileSync(join(ROOT, "vercel.json"), "utf8")).regions).toEqual(["icn1"]);
+  });
+});
+
+describe("인증키 변수명 호환", () => {
+  it("SERVICE_KEY → API_KEY → PUBLIC_DATA_API_KEY 순으로 인식", async () => {
+    const { rawDataPortalKey } = await import("@/lib/market/key");
+    const saved = { ...process.env };
+    delete process.env.DATA_GO_KR_SERVICE_KEY;
+    delete process.env.DATA_GO_KR_API_KEY;
+    process.env.PUBLIC_DATA_API_KEY = "legacy";
+    expect(rawDataPortalKey()).toBe("legacy");
+    process.env.DATA_GO_KR_API_KEY = " zipcatch ";
+    expect(rawDataPortalKey()).toBe("zipcatch");
+    process.env.DATA_GO_KR_SERVICE_KEY = "primary";
+    expect(rawDataPortalKey()).toBe("primary");
+    process.env = saved;
   });
 });

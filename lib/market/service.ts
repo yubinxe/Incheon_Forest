@@ -11,6 +11,7 @@ import {
   type NoticeRow,
   type SupplyType,
 } from "./analyze";
+import { rawDataPortalKey } from "./key";
 import { daysAgo, kstDate, kstDateTime, mapLimit, parseXmlHeader, parseXmlItems, recentMonths } from "./util";
 
 const DAY = 86400;
@@ -21,7 +22,7 @@ const LEGACY_SGG: { when: RegExp; code: string; label: string }[] = [
 ];
 
 function serviceKey(): string | null {
-  const k = process.env.DATA_GO_KR_SERVICE_KEY?.trim();
+  const k = rawDataPortalKey();
   if (!k) return null;
   return k.includes("%") ? k : encodeURIComponent(k);
 }

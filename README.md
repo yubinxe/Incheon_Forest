@@ -8,13 +8,13 @@
 
 ```bash
 npm install
-cp .env.example .env.local   # DATA_GO_KR_SERVICE_KEY 입력 (서버 전용)
+cp .env.example .env.local   # DATA_GO_KR_SERVICE_KEY 또는 DATA_GO_KR_API_KEY 입력 (서버 전용)
 npm run dev
 npm test                     # 25개 단언: 입력값·손익분기·파서·보안
 npm run build                # 키 없이도 통과 — 빌드 시 API 미호출
 ```
 
-배포: Vercel 프로젝트 환경변수 `DATA_GO_KR_SERVICE_KEY` 설정 → 재배포. `vercel.json`은 서울 리전(`icn1`).
+배포: Vercel 프로젝트 환경변수 `DATA_GO_KR_SERVICE_KEY` 또는 zipcatch와 같은 `DATA_GO_KR_API_KEY` 설정 → 재배포. `vercel.json`은 서울 리전(`icn1`).
 
 ## ① 입력값 산출 (단위 백만원)
 

@@ -72,7 +72,7 @@ export function Market() {
       {load.state === "failed" && <Pending>조회 실패: {load.message}</Pending>}
       {load.state === "done" && load.data.status === "no_key" && (
         <Pending>
-          <b>공공데이터 인증키가 아직 서버에 설정되지 않았습니다.</b> Vercel 프로젝트 환경변수 <code>DATA_GO_KR_SERVICE_KEY</code>에 공공데이터포털 일반 인증키를 넣고
+          <b>공공데이터 인증키가 아직 서버에 설정되지 않았습니다.</b> Vercel 프로젝트 환경변수 <code>DATA_GO_KR_API_KEY</code>(zipcatch와 같은 이름) 또는 <code>DATA_GO_KR_SERVICE_KEY</code>에 공공데이터포털 일반 인증키를 넣고
           재배포하면, 이 장과 Ⅳ·Ⅴ장의 적용값이 자동으로 채워집니다. 그전까지 적용값은 비워 두며 임의의 시장 수치를 쓰지 않습니다.
         </Pending>
       )}
@@ -473,7 +473,7 @@ export function Verify() {
 
       <h3 className="h3">보안 점검</h3>
       <ul className="sec-list">
-        <li>인증키 상태: <b>{keyState}</b> — <code>DATA_GO_KR_SERVICE_KEY</code>는 <code>.env.local</code>과 Vercel 환경변수에만 둡니다. <code>NEXT_PUBLIC_</code> 접두사 미사용.</li>
+        <li>인증키 상태: <b>{keyState}</b> — <code>DATA_GO_KR_SERVICE_KEY</code> · <code>DATA_GO_KR_API_KEY</code>는 <code>.env.local</code>과 Vercel 환경변수에만 둡니다. <code>NEXT_PUBLIC_</code> 접두사 미사용.</li>
         <li>공공데이터 호출은 <code>app/api/market</code> 라우트(서버)에서만 · <code>server-only</code>로 클라이언트 번들 유입 차단.</li>
         <li>브라우저는 지역 이름만 전송(한글·숫자·공백 40자 이내 검증), 법정동코드는 서버가 확인.</li>
         <li>응답은 하루 캐시(<code>revalidate 86400</code>) · 빌드 시 API 미호출(<code>force-dynamic</code>) · 서울 리전(<code>icn1</code>).</li>

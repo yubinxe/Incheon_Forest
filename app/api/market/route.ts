@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildMarket } from "@/lib/market/service";
 import { sanitizeRegion } from "@/lib/market/util";
+import { rawDataPortalKey } from "@/lib/market/key";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic"; // 빌드 시 API 호출 금지
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
   if (!region) {
     return NextResponse.json({ status: "bad_request", message: "지역명은 한글·숫자·공백 40자 이내" }, { status: 400 });
   }
-  if (!process.env.DATA_GO_KR_SERVICE_KEY) {
+  if (!rawDataPortalKey()) {
     return NextResponse.json({ status: "no_key", region }, { headers: { "Cache-Control": "no-store" } });
   }
   try {
