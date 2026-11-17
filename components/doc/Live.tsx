@@ -386,7 +386,7 @@ export function Signals() {
   s.push({
     name: "상환 한계가(전용 환산) vs 분양권 전용평당 실거래",
     ours: `${m(pfPerExclusive, 0)}만원/전용평 (84㎡A · 공급/전용 ${ratio84.toFixed(3)})`,
-    market: pre ? `${m(pre)}만원 · ${market!.presale.n}건` : "대기",
+    market: pre ? `${m(pre)}만원 · ${market!.presale.n}건` : market ? `${market.regionInfo.dong} 분양권 거래 0건 (${market.windows.trades})` : "대기",
     margin: pre ? pct(1 - pfPerExclusive / pre) : "—",
     good: pre ? 1 - pfPerExclusive / pre >= 0.15 : null,
     basis: "분양권 시세는 ‘지금 이 동네 신축을 얼마에 사는가’의 시장가. 실거래는 전용면적 기준이라 03의 전용/공급 비율로 환산.",
@@ -418,7 +418,7 @@ export function Signals() {
           <li key={x.name} className={x.good === null ? "wait" : x.good ? "ok" : "bad"}>
             <div className="s-top">
               <h3>{x.name}</h3>
-              <span className="s-flag">{x.good === null ? "데이터 대기" : x.good ? "여유" : "주의"}</span>
+              <span className="s-flag">{x.good === null ? (market ? "표본 없음" : "데이터 대기") : x.good ? "여유" : "주의"}</span>
             </div>
             <dl>
               <div><dt>사업</dt><dd>{x.ours}</dd></div>
