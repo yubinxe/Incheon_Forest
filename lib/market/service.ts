@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import {
   analyzeCompetition,
   analyzePresale,
@@ -83,7 +84,7 @@ export async function resolveRegion(key: string, input: string) {
   const matched = rows.filter(
     (r) => (r.locallow_nm ?? "").trim() === dong && r.ri_cd === "00" && r.umd_cd !== "000",
   );
-  const codes = new Map<string, { code: string; label: string; source: "api" | "legacy" }>();
+  const codes = new Map<string, { code: string; label: string; source: "api" | "legacy" | "probe" }>();
   for (const r of matched) {
     const sgg = r.region_cd.slice(0, 5);
     const label = r.locatadd_nm.split(" ").slice(0, 2).join(" ");
@@ -123,11 +124,35 @@ function staticRegion(input: string) {
     query: dong,
     dong,
     matched: [] as { code: string; name: string }[],
-    codes: [{ code: hit.sgg, label: hit.label, source: "legacy" as const }],
+    codes: [{ code: hit.sgg, label: hit.label, source: "legacy" }] as { code: string; label: string; source: "api" | "legacy" | "probe" }[],
     sggKeywords: ["서구", "서해구"],
     warnings: [] as string[],
   };
 }
+
+/**
+ * 신규 시군구코드 탐색 — 법정동코드 API를 쓸 수 없을 때, 인천 후보 코드(281xx~282xx, 끝자리 0·5)에
+ * 최근 1개월 전월세를 조회해 해당 법정동 거래가 나오는 코드를 찾는다. 30일 캐시.
+ */
+const discoverSgg = unstable_cache(
+  async (key: string, dong: string, ym: string) => {
+    const candidates: string[] = [];
+    for (let c = 28100; c <= 28295; c += 5) candidates.push(String(c));
+    const hits: { code: string; rows: number }[] = [];
+    await mapLimit(candidates, 8, async (code) => {
+      try {
+        const rows = await fetchRtms(key, "AptRent", code, ym);
+        const n = rows.filter((r) => r.umdNm?.trim() === dong).length;
+        if (n > 0) hits.push({ code, rows: n });
+      } catch {
+        /* 후보 실패는 무시 */
+      }
+    });
+    return hits.sort((a, b) => b.rows - a.rows);
+  },
+  ["sgg-discovery-v1"],
+  { revalidate: 86400 * 30 },
+);
 
 /* ───────── ①② 국토교통부 실거래가 ───────── */
 
@@ -212,7 +237,19 @@ export async function buildMarket(region: string) {
     log("법정동코드", 0, msg);
     const fb = staticRegion(region);
     if (!fb) return { status: "error" as const, fetchedAt, region, message: `법정동코드 확인 실패: ${msg}` };
-    reg = { ...fb, warnings: [`법정동코드 API 실패(${msg}) — 정적 코드표로 대체. 2026-07 개편 후 신규 서해구 코드는 미확인`, ...fb.warnings] };
+    const probe = await discoverSgg(key, fb.dong, recentMonths(2)[1]);
+    for (const h of probe) {
+      if (!fb.codes.some((c) => c.code === h.code))
+        fb.codes.unshift({ code: h.code, label: `실거래 탐색으로 확인 (${fb.dong} 전월세 ${h.rows}건)`, source: "probe" });
+    }
+    reg = {
+      ...fb,
+      warnings: [
+        `법정동코드 API 실패(${msg}) — 정적 코드표 + 실거래 탐색으로 대체`,
+        probe.length ? `탐색 결과 ${fb.dong} 거래 코드: ${probe.map((h) => h.code).join(", ")}` : `실거래 탐색에서 ${fb.dong} 거래 코드를 찾지 못함`,
+        ...fb.warnings,
+      ],
+    };
   }
   if (!reg.codes.length) {
     return { status: "error" as const, fetchedAt, region, message: `‘${region}’에 해당하는 시군구코드를 찾지 못했습니다.`, regionInfo: reg };

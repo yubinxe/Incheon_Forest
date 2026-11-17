@@ -85,7 +85,7 @@ export function Market() {
             <thead><tr><th>시군구코드</th><th>명칭</th><th>출처</th></tr></thead>
             <tbody>
               {market.regionInfo.codes.map((c) => (
-                <tr key={c.code}><td className="mono">{c.code}</td><td>{c.label}</td><td>{c.source === "api" ? "법정동코드 API" : "개편 전 코드 병행 조회"}</td></tr>
+                <tr key={c.code}><td className="mono">{c.code}</td><td>{c.label}</td><td>{c.source === "api" ? "법정동코드 API" : c.source === "probe" ? "실거래 API 탐색" : "개편 전 코드 병행 조회"}</td></tr>
               ))}
             </tbody>
           </table>
