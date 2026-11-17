@@ -425,7 +425,7 @@ export function waterNormals(size = 256) {
     for (let x = 0; x < size; x++) {
       const dx = h(x + 1, y) - h(x - 1, y);
       const dy = h(x, y + 1) - h(x, y - 1);
-      const n = new THREE.Vector3(-dx * 0.9, -dy * 0.9, 1).normalize();
+      const n = new THREE.Vector3(-dx * 0.38, -dy * 0.38, 1).normalize();
       const k = (y * size + x) * 4;
       img.data[k] = (n.x * 0.5 + 0.5) * 255;
       img.data[k + 1] = (n.y * 0.5 + 0.5) * 255;
@@ -575,18 +575,21 @@ function groundTexture() {
   const c = document.createElement("canvas");
   c.width = c.height = 512;
   const g = c.getContext("2d")!;
-  g.fillStyle = "#8f8d82";
+  g.fillStyle = "#8d8b82";
   g.fillRect(0, 0, 512, 512);
   const r = rng(11);
-  // 단지 조경 · 공원 녹지 덩어리
-  for (let i = 0; i < 70; i++) {
-    const x = r() * 512, y = r() * 512, rr = 12 + r() * 46;
-    const grad = g.createRadialGradient(x, y, 0, x, y, rr);
-    const gr = `${78 + r() * 20},${98 + r() * 20},${62 + r() * 12}`;
-    grad.addColorStop(0, `rgba(${gr},0.85)`);
-    grad.addColorStop(1, `rgba(${gr},0)`);
-    g.fillStyle = grad;
-    g.fillRect(x - rr, y - rr, rr * 2, rr * 2);
+  // 단지 조경 — 멀리서 수관이 모여 보이는 작은 점 군집
+  for (let i = 0; i < 90; i++) {
+    const cx = r() * 512, cy = r() * 512, spread = 10 + r() * 26;
+    const n = 30 + Math.floor(r() * 60);
+    for (let k = 0; k < n; k++) {
+      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * spread;
+      const v = r() * 18;
+      g.fillStyle = `rgba(${62 + v},${78 + v},${50 + v * 0.5},0.75)`;
+      g.beginPath();
+      g.arc((cx + Math.cos(a) * d + 512) % 512, (cy + Math.sin(a) * d + 512) % 512, 1.2 + r() * 2.4, 0, Math.PI * 2);
+      g.fill();
+    }
   }
   // 포장 · 주차 · 보행로 결
   for (let i = 0; i < 2600; i++) {

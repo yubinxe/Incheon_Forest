@@ -41,7 +41,9 @@ const CineShader = {
       float lum = dot(col, vec3(0.299, 0.587, 0.114));
       col = mix(col, col * vec3(1.06, 1.0, 0.92), smoothstep(0.45, 1.0, lum));
       col += vec3(-0.012, 0.004, 0.02) * (1.0 - smoothstep(0.0, 0.45, lum));
-      col = mix(col, smoothstep(0.0, 1.0, col), 0.22);
+      col = mix(col, smoothstep(0.0, 1.0, col), 0.34);
+      float l2 = dot(col, vec3(0.299, 0.587, 0.114));
+      col = mix(vec3(l2), col, 1.08);
       col *= mix(1.0, 1.0 - uVig, smoothstep(0.28, 0.82, d));
       float n = hash(vUv * uRes + fract(uTime) * 91.7) - 0.5;
       col += n * uGrain;
@@ -116,10 +118,10 @@ export default function Scene() {
     const sky = new Sky();
     sky.scale.setScalar(12000);
     const su = sky.material.uniforms;
-    su.turbidity.value = 4.5;
-    su.rayleigh.value = 2.8;
-    su.mieCoefficient.value = 0.005;
-    su.mieDirectionalG.value = 0.84;
+    su.turbidity.value = 2.4;
+    su.rayleigh.value = 1.5;
+    su.mieCoefficient.value = 0.0035;
+    su.mieDirectionalG.value = 0.82;
     scene.add(sky);
 
     const sun = new THREE.DirectionalLight("#fff1dc", 3);
@@ -207,14 +209,14 @@ export default function Scene() {
       textureHeight: Q.waterRes || 16,
       waterNormals: waterNormals(),
       sunDirection: new THREE.Vector3(),
-      sunColor: 0xfff1dc,
+      sunColor: 0xb8a58c,
       waterColor: 0x0a1822,
       distortionScale: 0.18,
       fog: true,
     });
     water.rotation.x = -Math.PI / 2;
     water.position.set(LAKE_CENTER.x, 0.4, LAKE_CENTER.z);
-    (water.material as THREE.ShaderMaterial).uniforms.size.value = 5;
+    (water.material as THREE.ShaderMaterial).uniforms.size.value = 3;
     if (Q.waterRes > 0) scene.add(water);
 
     /* 후처리 — 야간 창·가로등 번짐 */
