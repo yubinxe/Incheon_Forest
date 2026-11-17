@@ -14,6 +14,9 @@ export const viewport: Viewport = { themeColor: "#0E1A2E", width: "device-width"
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
+      <head>
+        <link rel="preload" as="image" href="/poster.webp" fetchPriority="high" />
+      </head>
       <body>{children}</body>
     </html>
   );
