@@ -579,13 +579,13 @@ function groundTexture() {
   g.fillRect(0, 0, 512, 512);
   const r = rng(11);
   // 단지 조경 — 멀리서 수관이 모여 보이는 작은 점 군집
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 60; i++) {
     const cx = r() * 512, cy = r() * 512, spread = 10 + r() * 26;
     const n = 30 + Math.floor(r() * 60);
     for (let k = 0; k < n; k++) {
       const a = r() * Math.PI * 2, d = Math.sqrt(r()) * spread;
       const v = r() * 18;
-      g.fillStyle = `rgba(${62 + v},${78 + v},${50 + v * 0.5},0.75)`;
+      g.fillStyle = `rgba(${70 + v},${82 + v},${58 + v * 0.5},0.32)`;
       g.beginPath();
       g.arc((cx + Math.cos(a) * d + 512) % 512, (cy + Math.sin(a) * d + 512) % 512, 1.2 + r() * 2.4, 0, Math.PI * 2);
       g.fill();

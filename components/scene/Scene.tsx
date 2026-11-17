@@ -232,6 +232,15 @@ export default function Scene() {
     gtao.updateGtaoMaterial({ radius: 7, distanceExponent: 1.6, thickness: 6, scale: 1.25, samples: 12, distanceFallOff: 1 });
     gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: 12 });
     gtao.blendIntensity = 0.85;
+    // AO 깊이·법선 패스에서 하늘 · 구름 · 구름 그림자를 빼야 하늘이 어두워지지 않는다
+    const gtaoRender = gtao.render.bind(gtao);
+    gtao.render = (...args: Parameters<typeof gtao.render>) => {
+      const hide = [sky, clouds.mesh, cloudShadow.mesh];
+      const prev = hide.map((o) => o.visible);
+      hide.forEach((o) => (o.visible = false));
+      gtaoRender(...args);
+      hide.forEach((o, i) => (o.visible = prev[i]));
+    };
     if (Q.ao) composer.addPass(gtao);
     const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0, 0.55, 0.82);
     if (Q.bloom) composer.addPass(bloom);
