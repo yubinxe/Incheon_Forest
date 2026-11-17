@@ -95,6 +95,7 @@ export default function Scene() {
       host.dataset.fallback = "1";
     });
     const Q = detectQuality(renderer);
+    const debug = new URLSearchParams(location.search).has("debug");
     host.dataset.tier = String(Q.tier);
     const mobile = Q.tier <= 1 && matchMedia("(pointer: coarse)").matches;
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -108,7 +109,7 @@ export default function Scene() {
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#b9b2a6", 350, 9500);
+    scene.fog = new THREE.Fog("#b9b2a6", 900, 14000);
     const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 2, 24000);
 
     /* 하늘 · 빛 */
@@ -187,6 +188,7 @@ export default function Scene() {
     scene.add(clouds.mesh);
     const cloudShadow = buildCloudShadows();
     if (Q.cloudShadow) scene.add(cloudShadow.mesh);
+    if (debug) Object.assign(window, { __lf: { scene, clouds, cloudShadow, renderer, Q } });
     const traffic = buildTraffic(ROADS, Q.cars);
     scene.add(traffic.group);
     const windTime = { value: 0 };
@@ -207,12 +209,12 @@ export default function Scene() {
       sunDirection: new THREE.Vector3(),
       sunColor: 0xfff1dc,
       waterColor: 0x0a1822,
-      distortionScale: 0.32,
+      distortionScale: 0.18,
       fog: true,
     });
     water.rotation.x = -Math.PI / 2;
     water.position.set(LAKE_CENTER.x, 0.4, LAKE_CENTER.z);
-    (water.material as THREE.ShaderMaterial).uniforms.size.value = 1.4;
+    (water.material as THREE.ShaderMaterial).uniforms.size.value = 5;
     if (Q.waterRes > 0) scene.add(water);
 
     /* 후처리 — 야간 창·가로등 번짐 */
