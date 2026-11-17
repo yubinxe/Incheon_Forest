@@ -1,0 +1,34 @@
+{
+  "name": "cheongna-lakeforet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "청라 레이크포레 — 살아있는 사업계획서 (교육용 합성 데이터)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-sans-kr": "^5.2.8",
+    "@fontsource/noto-serif-kr": "^5.2.8",
+    "lenis": "1.3.27",
+    "next": "15.5.29",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "server-only": "^0.0.1",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.0",
+    "@types/react": "19.1.17",
+    "@types/react-dom": "19.1.9",
+    "@types/three": "0.180.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
