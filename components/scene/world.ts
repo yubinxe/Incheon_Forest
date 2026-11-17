@@ -22,9 +22,11 @@ export type { TowerSpec } from "./towers";
 const WIN_W = 24;
 const WIN_H = 26;
 const TOP = 30; // 옥상 크라운 밴드(px)
+const COLS_PER_UNIT = 4; // 4칸 = 한 세대 폭(약 9.6m)
 
 type Facade = {
   day: THREE.CanvasTexture;
+  rm: THREE.CanvasTexture; // G = roughness, B = metalness
   glow: THREE.CanvasTexture;
   canvas: HTMLCanvasElement;
   seeds: Float32Array;
@@ -33,83 +35,80 @@ type Facade = {
   floors: number;
 };
 
-/** 국내 고급 주거 입면 — 석재 저층부 · 유리 난간 발코니 · 세대 경계 벽체 · 브론즈 크라운 */
-function paintDay(cols: number, floors: number, seed: number) {
+/**
+ * 국내 고급 주거 입면 — 석재 저층부 · 깊게 들어간 유리 · 세대 경계 벽체.
+ * 발코니 슬래브 · 유리 난간 · 세대 경계 핀은 실제 형상으로 따로 세운다 (buildComplex).
+ * 같은 배치로 거칠기·금속도 맵을 함께 그려 유리만 하늘과 도시를 반사하게 한다.
+ */
+function paintFacade(cols: number, floors: number, seed: number) {
   const c = document.createElement("canvas");
   c.width = cols * WIN_W;
   c.height = floors * WIN_H + TOP;
+  const rmC = document.createElement("canvas");
+  rmC.width = c.width;
+  rmC.height = c.height;
   const g = c.getContext("2d")!;
+  const m = rmC.getContext("2d")!;
   const r = rng(seed);
   const W = c.width;
-  // 바탕 — 웜화이트 도장 + 미세한 얼룩
-  g.fillStyle = "#ebe6dc";
+  const rmFill = (rough: number, metal: number, x: number, y: number, w: number, h: number) => {
+    m.fillStyle = `rgb(0,${Math.round(rough * 255)},${Math.round(metal * 255)})`;
+    m.fillRect(x, y, w, h);
+  };
+  // 바탕 — 웜화이트 도장 + 빗물 얼룩
+  g.fillStyle = "#e9e4da";
   g.fillRect(0, 0, W, c.height);
-  for (let i = 0; i < 260; i++) {
-    g.fillStyle = `rgba(120,108,90,${r() * 0.035})`;
-    g.fillRect(r() * W, r() * c.height, 2 + r() * 30, 2 + r() * 50);
+  rmFill(0.88, 0, 0, 0, W, c.height);
+  for (let i = 0; i < 380; i++) {
+    g.fillStyle = `rgba(110,98,82,${r() * 0.04})`;
+    const x = r() * W;
+    g.fillRect(x, r() * c.height, 1 + r() * 3, 20 + r() * 120);
   }
-  const stoneFrom = floors - 3; // 저층 2개 층 석재
+  const stoneFrom = floors - 3;
   for (let f = 0; f < floors - 1; f++) {
     const y = TOP + f * WIN_H;
     const stone = f >= stoneFrom;
     if (stone) {
-      g.fillStyle = "#8f877b";
+      g.fillStyle = "#8c8478";
       g.fillRect(0, y, W, WIN_H);
-      g.fillStyle = "rgba(255,255,255,0.08)";
+      rmFill(0.62, 0, 0, y, W, WIN_H);
+      g.fillStyle = "rgba(255,255,255,0.07)";
       for (let x = 0; x < W; x += 12) g.fillRect(x, y, 1, WIN_H);
     }
-    // 슬래브 엣지
-    g.fillStyle = stone ? "#7b7468" : "#d9d2c4";
-    g.fillRect(0, y + WIN_H - 3, W, 3);
     for (let i = 0; i < cols; i++) {
       const x = i * WIN_W;
-      if (i % 4 === 0) {
-        // 세대 경계 벽체 — 살짝 돌출된 음영
-        g.fillStyle = stone ? "#857d71" : "#e2dcd0";
-        g.fillRect(x, y, WIN_W, WIN_H - 3);
-        g.fillStyle = "rgba(0,0,0,0.06)";
-        g.fillRect(x + WIN_W - 2, y, 2, WIN_H - 3);
-        continue;
-      }
-      // 유리 — 하늘 반사 그라데이션
+      if (i % COLS_PER_UNIT === 0) continue; // 세대 경계 벽 — 바탕 유지
+      // 유리 — 어두운 실내 + 프레넬 반사는 셰이더가 처리
       const t = r();
-      const grad = g.createLinearGradient(x, y, x, y + WIN_H);
-      grad.addColorStop(0, `rgb(${70 + t * 30},${88 + t * 30},${108 + t * 30})`);
-      grad.addColorStop(0.55, `rgb(${118 + t * 40},${138 + t * 36},${156 + t * 30})`);
-      grad.addColorStop(1, `rgb(${60 + t * 20},${74 + t * 20},${90 + t * 20})`);
-      g.fillStyle = grad;
-      g.fillRect(x + 1.5, y + 3, WIN_W - 3, WIN_H - 7);
-      // 커튼 · 블라인드 (일부 세대)
-      if (r() < 0.22) {
-        g.fillStyle = `rgba(${200 + r() * 40},${190 + r() * 30},${170 + r() * 30},0.55)`;
-        g.fillRect(x + 2, y + 4, WIN_W - 4, (WIN_H - 9) * (0.3 + r() * 0.5));
+      const glassY = y + 2;
+      const glassH = WIN_H - 4;
+      g.fillStyle = `rgb(${34 + t * 16},${44 + t * 16},${54 + t * 18})`;
+      g.fillRect(x + 1.5, glassY, WIN_W - 3, glassH);
+      rmFill(0.04 + r() * 0.08, 0.35, x + 1.5, glassY, WIN_W - 3, glassH);
+      // 커튼 · 블라인드 — 반사가 약해지고 밝은 천이 비친다
+      if (r() < 0.28) {
+        const ch = glassH * (0.35 + r() * 0.6);
+        g.fillStyle = `rgb(${190 + r() * 40},${180 + r() * 34},${160 + r() * 30})`;
+        g.fillRect(x + 2, glassY + 1, WIN_W - 4, ch);
+        rmFill(0.45, 0.05, x + 2, glassY + 1, WIN_W - 4, ch);
       }
-      // 멀리언
-      g.fillStyle = "rgba(40,44,50,0.55)";
-      g.fillRect(x + WIN_W / 2 - 0.5, y + 3, 1, WIN_H - 7);
-      // 유리 난간
-      g.fillStyle = "rgba(205,222,228,0.42)";
-      g.fillRect(x + 1, y + WIN_H - 11, WIN_W - 2, 7);
-      g.fillStyle = "rgba(245,245,240,0.85)";
-      g.fillRect(x + 1, y + WIN_H - 11, WIN_W - 2, 1.2);
+      // 창틀 · 멀리언
+      g.fillStyle = "#3a3f46";
+      g.fillRect(x + WIN_W / 2 - 0.6, glassY, 1.2, glassH);
+      g.fillRect(x + 1.5, glassY, WIN_W - 3, 1);
+      rmFill(0.4, 0.8, x + WIN_W / 2 - 0.6, glassY, 1.2, glassH);
     }
   }
-  // 측면 수직 액센트 (네이비 핀)
-  g.fillStyle = "#1d2c44";
-  g.fillRect(W - WIN_W * 0.5, TOP, WIN_W * 0.18, (floors - 3) * WIN_H);
-  // 옥상 크라운 — 브론즈 프레임
-  g.fillStyle = "#d8d1c3";
+  // 옥상 밴드
+  g.fillStyle = "#d6cfc1";
   g.fillRect(0, 0, W, TOP);
-  g.fillStyle = "#8a6e45";
-  g.fillRect(0, TOP - 6, W, 4);
-  g.fillRect(0, 4, W, 3);
-  for (let x = 0; x < W; x += WIN_W * 2) g.fillRect(x, 4, 3, TOP - 6);
-  // 필로티
-  g.fillStyle = "#2f3237";
+  // 필로티 — 어두운 개방부 + 석재 기둥
+  g.fillStyle = "#24272b";
   g.fillRect(0, c.height - WIN_H, W, WIN_H);
-  g.fillStyle = "#c9a874";
-  g.fillRect(0, c.height - WIN_H, W, 2);
-  return c;
+  rmFill(0.9, 0, 0, c.height - WIN_H, W, WIN_H);
+  g.fillStyle = "#8c8478";
+  for (let i = 0; i < cols; i += COLS_PER_UNIT) g.fillRect(i * WIN_W, c.height - WIN_H, WIN_W * 0.6, WIN_H);
+  return { c, rmC };
 }
 
 const WARM = ["#ffd9a6", "#ffcf8f", "#ffe4bd", "#ffc27a", "#f6e9d2", "#dfe8f5"];
@@ -118,18 +117,18 @@ function paintGlow(f: Facade, lit: number) {
   const g = f.canvas.getContext("2d")!;
   g.fillStyle = "#000";
   g.fillRect(0, 0, f.canvas.width, f.canvas.height);
-  // 크라운 경관조명 — 항상 켜짐(밤에만 보임)
-  g.fillStyle = "#e9c48a";
-  g.fillRect(0, TOP - 6, f.canvas.width, 4);
+  // 필로티 로비 조명 — 항상 켜짐(밤에만 보임)
+  g.fillStyle = "#c79a5c";
+  g.fillRect(0, f.canvas.height - WIN_H + 6, f.canvas.width, WIN_H - 8);
   for (let fl = 0; fl < f.floors - 1; fl++) {
     const y = TOP + fl * WIN_H;
     for (let i = 0; i < f.cols; i++) {
-      if (i % 4 === 0) continue;
+      if (i % COLS_PER_UNIT === 0) continue;
       const k = fl * f.cols + i;
       if (f.seeds[k] >= lit) continue;
       g.fillStyle = WARM[f.hues[k] % WARM.length];
-      g.globalAlpha = 0.72 + ((f.seeds[k] * 7919) % 1) * 0.28;
-      g.fillRect(i * WIN_W + 2, y + 4, WIN_W - 4, WIN_H - 9);
+      g.globalAlpha = 0.7 + ((f.seeds[k] * 7919) % 1) * 0.3;
+      g.fillRect(i * WIN_W + 2, y + 3, WIN_W - 4, WIN_H - 6);
     }
   }
   g.globalAlpha = 1;
@@ -138,7 +137,7 @@ function paintGlow(f: Facade, lit: number) {
 
 function makeFacade(width: number, floors: number, seed: number): Facade {
   const cols = Math.max(4, Math.round(width / 2.4));
-  const dayCanvas = paintDay(cols, floors, seed);
+  const { c: dayCanvas, rmC } = paintFacade(cols, floors, seed);
   const glowCanvas = document.createElement("canvas");
   glowCanvas.width = dayCanvas.width;
   glowCanvas.height = dayCanvas.height;
@@ -146,13 +145,13 @@ function makeFacade(width: number, floors: number, seed: number): Facade {
   const n = cols * floors;
   const seeds = new Float32Array(n);
   const hues = new Uint8Array(n);
-  // 세대 단위(4칸)로 같은 점등 — 한 세대가 통째로 켜진다
+  // 세대 단위로 같은 점등 — 한 세대가 통째로 켜진다
   for (let fl = 0; fl < floors; fl++) {
-    for (let u = 0; u < Math.ceil(cols / 4); u++) {
+    for (let u = 0; u < Math.ceil(cols / COLS_PER_UNIT); u++) {
       const s = r();
       const h = Math.floor(r() * 255);
-      for (let j = 0; j < 4; j++) {
-        const i = u * 4 + j;
+      for (let j = 0; j < COLS_PER_UNIT; j++) {
+        const i = u * COLS_PER_UNIT + j;
         if (i >= cols) break;
         seeds[fl * cols + i] = Math.min(0.999, s + (r() - 0.5) * 0.04);
         hues[fl * cols + i] = h;
@@ -162,9 +161,11 @@ function makeFacade(width: number, floors: number, seed: number): Facade {
   const day = new THREE.CanvasTexture(dayCanvas);
   day.colorSpace = THREE.SRGBColorSpace;
   day.anisotropy = 8;
+  const rm = new THREE.CanvasTexture(rmC);
+  rm.anisotropy = 8;
   const glow = new THREE.CanvasTexture(glowCanvas);
   glow.colorSpace = THREE.SRGBColorSpace;
-  const f: Facade = { day, glow, canvas: glowCanvas, seeds, hues, cols, floors };
+  const f: Facade = { day, rm, glow, canvas: glowCanvas, seeds, hues, cols, floors };
   paintGlow(f, 0);
   return f;
 }
@@ -172,6 +173,7 @@ function makeFacade(width: number, floors: number, seed: number): Facade {
 export type Complex = {
   group: THREE.Group;
   materials: THREE.MeshStandardMaterial[];
+  glassMats: THREE.MeshStandardMaterial[];
   setLit: (lit: number) => void;
 };
 
@@ -202,7 +204,7 @@ function louverMat(width: number) {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
-  const m = new THREE.MeshStandardMaterial({ map: t, transparent: false, alphaTest: 0.5, side: THREE.DoubleSide, metalness: 0.6, roughness: 0.4 });
+  const m = new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.5, side: THREE.DoubleSide, metalness: 0.6, roughness: 0.4 });
   louverCache.set(key, m);
   return m;
 }
@@ -213,7 +215,43 @@ export function buildComplex(): Complex {
   const materials: THREE.MeshStandardMaterial[] = [];
   const roofMat = new THREE.MeshStandardMaterial({ color: "#a9a397", roughness: 0.9 });
   const bronze = new THREE.MeshStandardMaterial({ color: "#8a6e45", roughness: 0.38, metalness: 0.75 });
-  const glassCore = new THREE.MeshStandardMaterial({ color: "#3e4a58", roughness: 0.12, metalness: 0.6 });
+  const glassCore = new THREE.MeshStandardMaterial({ color: "#7b7f84", roughness: 0.45, metalness: 0.4 });
+  const slabMat = new THREE.MeshStandardMaterial({ color: "#ece7dc", roughness: 0.78 });
+  const finMat = new THREE.MeshStandardMaterial({ color: "#e4ded2", roughness: 0.82 });
+  const railMat = new THREE.MeshStandardMaterial({
+    color: "#a7bcc6",
+    roughness: 0.04,
+    metalness: 0.55,
+    transparent: true,
+    opacity: 0.42,
+    depthWrite: false,
+  });
+
+  // 실구조 인스턴스 개수 산정
+  let nSlab = 0;
+  let nFin = 0;
+  for (const t of TOWERS) {
+    nSlab += t.floors * 2;
+    nFin += (Math.floor(Math.round(t.w / 2.4) / COLS_PER_UNIT) + 1) * 2;
+  }
+  const slabGeo = new THREE.BoxGeometry(1, 1, 1);
+  const slabs = new THREE.InstancedMesh(slabGeo, slabMat, nSlab);
+  const rails = new THREE.InstancedMesh(slabGeo, railMat, nSlab);
+  const fins = new THREE.InstancedMesh(slabGeo, finMat, nFin);
+  slabs.castShadow = slabs.receiveShadow = true;
+  fins.castShadow = fins.receiveShadow = true;
+  let iS = 0;
+  let iF = 0;
+  const local = new THREE.Object3D();
+  const towerM = new THREE.Matrix4();
+  const out = new THREE.Matrix4();
+  const put = (mesh: THREE.InstancedMesh, i: number, x: number, y: number, z: number, sx: number, sy: number, sz: number) => {
+    local.position.set(x, y, z);
+    local.scale.set(sx, sy, sz);
+    local.updateMatrix();
+    out.multiplyMatrices(towerM, local.matrix);
+    mesh.setMatrixAt(i, out);
+  };
 
   TOWERS.forEach((t, idx) => {
     const h = PILOTI_H + t.floors * FLOOR_H;
@@ -223,11 +261,13 @@ export function buildComplex(): Complex {
     const mk = (f: Facade) => {
       const m = new THREE.MeshStandardMaterial({
         map: f.day,
+        roughnessMap: f.rm,
+        metalnessMap: f.rm,
+        roughness: 1,
+        metalness: 1,
         emissiveMap: f.glow,
         emissive: new THREE.Color("#ffffff"),
         emissiveIntensity: 0,
-        roughness: 0.5,
-        metalness: 0.08,
       });
       materials.push(m);
       return m;
@@ -237,39 +277,80 @@ export function buildComplex(): Complex {
     const tower = new THREE.Group();
     tower.position.set(t.x, 0, t.z);
     tower.rotation.y = t.rot;
+    tower.updateMatrix();
+    towerM.copy(tower.matrix);
+
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(t.w, h, t.d), [shortMat, shortMat, roofMat, roofMat, longMat, longMat]);
     mesh.position.y = h / 2;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     tower.add(mesh);
 
-    // 옥상 — 유리 코어 + 브론즈 크라운 프레임
-    const core = new THREE.Mesh(new THREE.BoxGeometry(t.w * 0.36, 7, t.d * 0.55), glassCore);
-    core.position.y = h + 3.5;
-    tower.add(core);
-    // 루버 크라운 — 브론즈 수직 루버를 컷아웃으로
+    // 발코니 슬래브 · 유리 난간 — 남·북 장변, 매 층
+    const depth = 1.6;
+    const bw = t.w - 1.2;
+    for (const side of [1, -1]) {
+      for (let f = 1; f <= t.floors; f++) {
+        const y = PILOTI_H + f * FLOOR_H - 0.12;
+        put(slabs, iS, 0, y, side * (t.d / 2 + depth / 2), bw, 0.24, depth);
+        put(rails, iS, 0, y + 0.6, side * (t.d / 2 + depth - 0.05), bw, 1.0, 0.06);
+        iS++;
+      }
+      // 세대 경계 핀 — 필로티 위 전 층
+      const cols = Math.round(t.w / 2.4);
+      const units = Math.floor(cols / COLS_PER_UNIT);
+      for (let u = 0; u <= units; u++) {
+        const x = -t.w / 2 + Math.min(t.w, u * COLS_PER_UNIT * (t.w / cols)) + (u === 0 ? 0.25 : u === units ? -0.25 : 0);
+        const fh = t.floors * FLOOR_H;
+        put(fins, iF, x, PILOTI_H + fh / 2, side * (t.d / 2 + depth / 2), 0.32, fh, depth);
+        iF++;
+      }
+    }
+
+    // 루버 크라운 — 브론즈 수직 루버
     const fw = t.w + 1.0;
-    const fd = t.d + 1.0;
+    const fd = t.d + 1.0 + depth * 2;
     const fh = 8;
-    const crown = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, fd, 1, 1, 1), [
+    const crown = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, fd), [
       louverMat(fd), louverMat(fd), roofMat, roofMat, louverMat(fw), louverMat(fw),
     ]);
     crown.geometry.groups.splice(2, 2); // 상·하면 제거 (열린 크라운)
     crown.position.y = h + fh / 2 + 0.4;
     crown.castShadow = true;
     tower.add(crown);
-    const cap = new THREE.Mesh(new THREE.BoxGeometry(fw + 0.4, 0.7, fd + 0.4), bronze);
-    cap.position.y = h + fh + 0.6;
-    tower.add(cap);
-    const capHole = new THREE.Mesh(new THREE.BoxGeometry(fw - 1.2, 0.8, fd - 1.2), glassCore);
-    capHole.position.y = h + fh + 0.62;
-    tower.add(capHole);
-    // 파라펫
+    // 크라운 상부 프레임 — 테두리만 (지붕 설비가 위에서 보이도록)
+    for (const [w2, d2, x2, z2] of [
+      [fw + 0.4, 0.7, 0, fd / 2],
+      [fw + 0.4, 0.7, 0, -fd / 2],
+      [0.7, fd + 0.4, fw / 2, 0],
+      [0.7, fd + 0.4, -fw / 2, 0],
+    ] as const) {
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(w2, 0.7, d2), bronze);
+      beam.position.set(x2, h + fh + 0.6, z2);
+      tower.add(beam);
+    }
+    // 옥상 — 코어(승강기 기계실) · 실외기 · 옥상 녹화
+    const core = new THREE.Mesh(new THREE.BoxGeometry(t.w * 0.3, 6, t.d * 0.5), roofMat);
+    core.position.y = h + 3;
+    core.castShadow = true;
+    tower.add(core);
+    const roofGreen = new THREE.Mesh(new THREE.BoxGeometry(t.w * 0.28, 0.4, t.d * 0.7), new THREE.MeshStandardMaterial({ color: "#56683f", roughness: 1 }));
+    roofGreen.position.set(t.w * 0.3, h + 0.2, 0);
+    tower.add(roofGreen);
+    for (let k = 0; k < 4; k++) {
+      const ac = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.6, 1.4), glassCore);
+      ac.position.set(-t.w * 0.32 + (k % 2) * 3, h + 0.8, (k < 2 ? -1 : 1) * t.d * 0.22);
+      tower.add(ac);
+    }
     const parapet = new THREE.Mesh(new THREE.BoxGeometry(t.w + 0.5, 1.2, t.d + 0.5), roofMat);
     parapet.position.y = h + 0.6;
     tower.add(parapet);
     group.add(tower);
   });
+  slabs.count = iS;
+  rails.count = iS;
+  fins.count = iF;
+  group.add(slabs, fins, rails);
 
   // 대지 — 보도 포장 + 중앙 잔디 + 수경
   const plate = new THREE.Mesh(
@@ -281,14 +362,14 @@ export function buildComplex(): Complex {
   group.add(plate);
   const lawn = new THREE.Mesh(
     new THREE.BoxGeometry(150, 0.3, 26),
-    new THREE.MeshStandardMaterial({ color: "#5f7448", roughness: 1 }),
+    new THREE.MeshStandardMaterial({ color: "#5a6f43", roughness: 1 }),
   );
   lawn.position.set(0, 1.3, 4);
   lawn.receiveShadow = true;
   group.add(lawn);
   const pond = new THREE.Mesh(
     new THREE.BoxGeometry(46, 0.2, 9),
-    new THREE.MeshStandardMaterial({ color: "#1f3442", roughness: 0.08, metalness: 0.9 }),
+    new THREE.MeshStandardMaterial({ color: "#1b2c38", roughness: 0.04, metalness: 0.9 }),
   );
   pond.position.set(0, 1.5, 4);
   group.add(pond);
@@ -297,6 +378,7 @@ export function buildComplex(): Complex {
   return {
     group,
     materials,
+    glassMats: [...materials, glassCore, railMat],
     setLit(lit: number) {
       const q = Math.round(lit * 100) / 100;
       if (q === lastLit) return;
@@ -356,46 +438,91 @@ export function waterNormals(size = 256) {
   return t;
 }
 
-/** 주변 고층 주거 — 흰 바탕 텍스처에 인스턴스 색으로 톤을 달리한다 */
+/**
+ * 주변 고층 주거 입면 — 텍스처 1장이 16열(38.4m) × 64층(185.6m)을 덮고,
+ * 셰이더가 인스턴스 크기에 맞춰 반복시켜 어느 동이든 층고 2.9m · 창폭 2.4m가 유지된다.
+ */
+const CTX_TILE = new THREE.Vector2(38.4, 185.6);
 function genericFacade(seed: number) {
   const W = 128, H = 512;
-  const c = document.createElement("canvas");
-  c.width = W;
-  c.height = H;
-  const g = c.getContext("2d")!;
+  const mk = () => {
+    const c = document.createElement("canvas");
+    c.width = W;
+    c.height = H;
+    return c;
+  };
+  const c = mk(), rmC = mk(), glow = mk();
+  const g = c.getContext("2d")!, m = rmC.getContext("2d")!, gg = glow.getContext("2d")!;
   const r = rng(seed);
-  g.fillStyle = "#f2f0ea";
+  g.fillStyle = "#f1eee8";
   g.fillRect(0, 0, W, H);
-  for (let y = 0; y < H; y += 8) {
-    g.fillStyle = "#dcd8cf";
-    g.fillRect(0, y + 7, W, 1);
-    for (let x = 0; x < W; x += 8) {
-      if ((x / 8) % 4 === 0) continue;
-      const t = r() * 30;
-      g.fillStyle = `rgb(${78 + t},${92 + t},${108 + t})`;
-      g.fillRect(x + 1, y + 1.5, 6, 4.5);
-      g.fillStyle = "rgba(220,230,235,0.5)";
-      g.fillRect(x + 1, y + 5, 6, 1);
-    }
-  }
-  const glow = document.createElement("canvas");
-  glow.width = W;
-  glow.height = H;
-  const gg = glow.getContext("2d")!;
+  m.fillStyle = "rgb(0,225,0)";
+  m.fillRect(0, 0, W, H);
   gg.fillStyle = "#000";
   gg.fillRect(0, 0, W, H);
-  for (let y = 0; y < H; y += 8)
+  for (let y = 0; y < H; y += 8) {
     for (let x = 0; x < W; x += 8) {
-      if ((x / 8) % 4 === 0 || r() > 0.34) continue;
-      gg.fillStyle = WARM[Math.floor(r() * WARM.length)];
-      gg.fillRect(x + 1, y + 1.5, 6, 4.5);
+      if ((x / 8) % 4 === 0) continue;
+      const t = r() * 18;
+      g.fillStyle = `rgb(${38 + t},${48 + t},${58 + t})`;
+      g.fillRect(x + 0.5, y + 1, 7, 5.5);
+      m.fillStyle = `rgb(0,${Math.round(12 + r() * 30)},${110})`;
+      m.fillRect(x + 0.5, y + 1, 7, 5.5);
+      if (r() < 0.25) {
+        g.fillStyle = `rgb(${196 + r() * 30},${188 + r() * 26},${170 + r() * 24})`;
+        g.fillRect(x + 1, y + 1.2, 6, 2 + r() * 3);
+      }
+      if (r() < 0.36) {
+        gg.fillStyle = WARM[Math.floor(r() * WARM.length)];
+        gg.fillRect(x + 0.5, y + 1, 7, 5.5);
+      }
     }
-  const day = new THREE.CanvasTexture(c);
-  day.colorSpace = THREE.SRGBColorSpace;
-  day.anisotropy = 4;
-  const em = new THREE.CanvasTexture(glow);
-  em.colorSpace = THREE.SRGBColorSpace;
-  return { day, em };
+    // 발코니 슬래브 밴드 — 밝은 수평선과 그 아래 그림자
+    g.fillStyle = "#faf8f3";
+    g.fillRect(0, y + 6.5, W, 1.5);
+    g.fillStyle = "rgba(0,0,0,0.12)";
+    g.fillRect(0, y, W, 1);
+  }
+  const tex = (cv: HTMLCanvasElement, color: boolean) => {
+    const t = new THREE.CanvasTexture(cv);
+    if (color) t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = 8;
+    return t;
+  };
+  return { day: tex(c, true), rm: tex(rmC, false), em: tex(glow, true) };
+}
+
+/** 인스턴스 크기에 따라 입면 UV를 반복 — 모든 맵 UV에 같은 값을 쓴다 */
+function tileByInstanceScale(mat: THREE.MeshStandardMaterial) {
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTile = { value: CTX_TILE };
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nuniform vec2 uTile;")
+      .replace(
+        "#include <uv_vertex>",
+        `#include <uv_vertex>
+        #ifdef USE_INSTANCING
+          vec3 sc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+          vec2 tuv = abs(normal.y) > 0.5 ? vec2(0.01, 0.01)
+            : uv * (abs(normal.x) > 0.5 ? vec2(sc.z, sc.y) : vec2(sc.x, sc.y)) / uTile
+              + vec2(fract(instanceMatrix[3].x * 0.013), 0.0);
+          #ifdef USE_MAP
+            vMapUv = tuv;
+          #endif
+          #ifdef USE_EMISSIVEMAP
+            vEmissiveMapUv = tuv;
+          #endif
+          #ifdef USE_ROUGHNESSMAP
+            vRoughnessMapUv = tuv;
+          #endif
+          #ifdef USE_METALNESSMAP
+            vMetalnessMapUv = tuv;
+          #endif
+        #endif`,
+      );
+  };
+  mat.customProgramCacheKey = () => "ctx-tile";
 }
 
 /** 차선 표시가 있는 아스팔트 */
@@ -450,6 +577,21 @@ function groundTexture() {
 }
 
 export const COAST_X = -1500;
+
+/** 도로망 [중심 x, 중심 z, 동서 길이, 남북 길이] — 차량 흐름과 공유 */
+export const ROADS: [number, number, number, number][] = [
+  [0, -110, 3600, 26],
+  [0, 92, 3600, 20],
+  [-150, -300, 20, 1400],
+  [150, -300, 20, 1400],
+  [520, -200, 30, 3000],
+  [-760, -200, 30, 3000],
+  [0, -620, 3600, 30],
+  [600, -1500, 4400, 40], // 광역 간선(고속화도로)
+  [1250, -200, 26, 3000],
+];
+const onRoad = (x: number, z: number, pad: number) =>
+  ROADS.some(([rx, rz, w, d]) => Math.abs(x - rx) < w / 2 + pad && Math.abs(z - rz) < d / 2 + pad);
 
 export function buildContext() {
   const group = new THREE.Group();
@@ -557,16 +699,7 @@ export function buildContext() {
   // 도로 — 차선 표시
   const roadTex = roadTexture();
   const walkMat = new THREE.MeshStandardMaterial({ color: "#bdb6a6", roughness: 0.95 });
-  const roads: [number, number, number, number][] = [
-    [0, -110, 3000, 26],
-    [0, 92, 3000, 20],
-    [-150, -300, 20, 1400],
-    [150, -300, 20, 1400],
-    [520, 0, 30, 2600],
-    [-760, 0, 30, 2600],
-    [0, -620, 3000, 30],
-  ];
-  for (const [x, z, w, d] of roads) {
+  for (const [x, z, w, d] of ROADS) {
     const along = w > d;
     const tex = roadTex.clone();
     tex.needsUpdate = true;
@@ -585,53 +718,90 @@ export function buildContext() {
     group.add(sw);
   }
 
-  // 주변 고층 주거 클러스터 (청라국제도시 맥락) — 호수·사업지·바다 제외
-  const { day, em } = genericFacade(77);
+  // 경인아라뱃길 — 청라 북측을 동서로 지나는 운하
+  const araMat = new THREE.MeshStandardMaterial({ color: "#26394a", roughness: 0.1, metalness: 0.9 });
+  const ara = new THREE.Mesh(new THREE.PlaneGeometry(6000, 90), araMat);
+  ara.rotation.x = -Math.PI / 2;
+  ara.position.set(COAST_X + 3000, 0.3, -2150);
+  group.add(ara);
+  const bankMat = new THREE.MeshStandardMaterial({ color: "#5d6c48", roughness: 1 });
+  for (const dz of [-70, 70]) {
+    const bank = new THREE.Mesh(new THREE.PlaneGeometry(6000, 50), bankMat);
+    bank.rotation.x = -Math.PI / 2;
+    bank.position.set(COAST_X + 3000, 0.22, -2150 + dz);
+    group.add(bank);
+  }
+
+  // 주변 고층 주거 (청라국제도시 맥락) — 호수변은 고층 링, 바깥은 중고층 · 도로·호수·사업지·바다 제외
+  const { day, rm, em } = genericFacade(77);
   const ctxMat = new THREE.MeshStandardMaterial({
     map: day,
+    roughnessMap: rm,
+    metalnessMap: rm,
+    roughness: 1,
+    metalness: 1,
     emissiveMap: em,
     emissive: new THREE.Color("#ffffff"),
     emissiveIntensity: 0,
-    roughness: 0.62,
-    metalness: 0.05,
   });
+  tileByInstanceScale(ctxMat);
   const box = new THREE.BoxGeometry(1, 1, 1);
   box.translate(0, 0.5, 0);
-  const COUNT = 320;
+  const COUNT = 380;
   const inst = new THREE.InstancedMesh(box, ctxMat, COUNT);
-  const crownMat = new THREE.MeshStandardMaterial({ color: "#d9d3c6", roughness: 0.6, metalness: 0.2 });
+  const crownMat = new THREE.MeshStandardMaterial({ color: "#d4cdbf", roughness: 0.55, metalness: 0.3 });
   const crowns = new THREE.InstancedMesh(box, crownMat, COUNT);
+  const podMat = new THREE.MeshStandardMaterial({ color: "#8f8a80", roughness: 0.7, metalness: 0.15 });
+  const pods = new THREE.InstancedMesh(box, podMat, 140);
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const up = new THREE.Vector3(0, 1, 0);
-  const tones = ["#ffffff", "#f3ece0", "#e9e4dc", "#dfe3e6", "#efe6d6", "#d9d5cc"];
+  const tones = ["#ffffff", "#f6f1e8", "#ece8e1", "#e3e7ea", "#f1e9da", "#dedad2", "#e9e2d6"];
   const col = new THREE.Color();
   let placed = 0;
+  let nPod = 0;
   let guard = 0;
-  while (placed < COUNT && guard++ < 9000) {
-    const x = (r() - 0.5) * 3600 + 300;
-    const z = (r() - 0.5) * 2800 - 300;
-    if (x < COAST_X + 120) continue;
+  const PX = new Float32Array(COUNT);
+  const PZ = new Float32Array(COUNT);
+  while (placed < COUNT && guard++ < 14000) {
+    const x = (r() - 0.5) * 3800 + 350;
+    const z = (r() - 0.5) * 3000 - 450;
+    if (x < COAST_X + 140 || z < -1980) continue;
     const inSite = Math.hypot(x, z * 1.3) < 330;
     const lx = (x - LAKE_CENTER.x) / 700;
     const lz = (z - LAKE_CENTER.z) / 300;
-    if (inSite || lx * lx + lz * lz < 1) continue;
-    if (Math.abs(z - (150 + (x - 1120) * -0.22)) < 40 && x > 380) continue; // 수로
-    const d0 = Math.hypot(x, z);
-    // 동북측 상업지 — 초고층
+    const le = lx * lx + lz * lz;
+    if (inSite || le < 1) continue;
+    if (Math.abs(z - (150 + (x - 1120) * -0.22)) < 44 && x > 380) continue; // 수로
+    if (onRoad(x, z, 26)) continue;
+    // 호수변 첫 열은 고층(35~55층), 동북측 업무지구 초고층, 외곽은 중고층
+    const lakefront = le < 1.9;
     const cbd = Math.hypot(x - 900, z + 700) < 420;
-    const h = cbd ? 120 + r() * 70 : d0 < 800 ? 70 + r() * 45 : 55 + r() * 70;
-    const slab = r() < 0.6;
-    const w = slab ? 40 + r() * 20 : 22 + r() * 8;
-    const d = slab ? 13 + r() * 3 : 22 + r() * 8;
-    q.setFromAxisAngle(up, (Math.round(r() * 2) - 1) * 0.06 + (r() < 0.15 ? Math.PI / 2 : 0));
+    const h = lakefront ? 105 + r() * 60 : cbd ? 125 + r() * 75 : 60 + r() * 60;
+    const slab = r() < 0.55;
+    const w = slab ? 42 + r() * 18 : 24 + r() * 6;
+    const d = slab ? 14 + r() * 3 : 24 + r() * 6;
+    // 겹침 방지 — 이미 놓인 동과 최소 간격
+    let clash = false;
+    for (let k = 0; k < placed && !clash; k++) if (Math.abs(PX[k] - x) < 50 && Math.abs(PZ[k] - z) < 38) clash = true;
+    if (clash) continue;
+    PX[placed] = x;
+    PZ[placed] = z;
+    q.setFromAxisAngle(up, (Math.round(r() * 2) - 1) * 0.05 + (r() < 0.12 ? Math.PI / 2 : 0));
     m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(w, h, d));
     inst.setMatrixAt(placed, m4);
     inst.setColorAt(placed, col.set(tones[Math.floor(r() * tones.length)]));
-    m4.compose(new THREE.Vector3(x, h, z), q, new THREE.Vector3(w * 0.45, 5 + r() * 4, d * 0.6));
+    m4.compose(new THREE.Vector3(x, h, z), q, new THREE.Vector3(w * 0.42, 6 + r() * 5, d * 0.6));
     crowns.setMatrixAt(placed, m4);
+    if (cbd && nPod < 140) {
+      m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(w + 18, 9 + r() * 6, d + 22));
+      pods.setMatrixAt(nPod++, m4);
+    }
     placed++;
   }
+  pods.count = nPod;
+  pods.castShadow = pods.receiveShadow = true;
+  group.add(pods);
   inst.count = placed;
   crowns.count = placed;
   inst.castShadow = true;
@@ -639,14 +809,31 @@ export function buildContext() {
   group.add(inst, crowns);
 
   // 수목 — 세 덩이를 겹쳐 나무 윤곽으로
+  const jitter = (g: THREE.BufferGeometry, seed: number, amt: number) => {
+    const jr = rng(seed);
+    const pos = g.attributes.position as THREE.BufferAttribute;
+    const seen = new Map<string, number>();
+    for (let i = 0; i < pos.count; i++) {
+      const key = `${pos.getX(i).toFixed(3)},${pos.getY(i).toFixed(3)},${pos.getZ(i).toFixed(3)}`;
+      let k = seen.get(key);
+      if (k === undefined) {
+        k = 1 + (jr() - 0.5) * amt;
+        seen.set(key, k);
+      }
+      pos.setXYZ(i, pos.getX(i) * k, pos.getY(i) * k, pos.getZ(i) * k);
+    }
+    g.computeVertexNormals();
+    return g;
+  };
   const lobes = [
-    new THREE.IcosahedronGeometry(0.85, 2).translate(0, 0.1, 0),
-    new THREE.IcosahedronGeometry(0.62, 2).translate(0.5, -0.12, 0.18),
-    new THREE.IcosahedronGeometry(0.58, 2).translate(-0.42, -0.05, -0.3),
-    new THREE.CylinderGeometry(0.07, 0.1, 1.2, 5).translate(0, -1.05, 0),
+    jitter(new THREE.IcosahedronGeometry(0.85, 2), 1, 0.3).translate(0, 0.12, 0),
+    jitter(new THREE.IcosahedronGeometry(0.62, 1), 2, 0.3).translate(0.52, -0.1, 0.2),
+    jitter(new THREE.IcosahedronGeometry(0.58, 1), 3, 0.3).translate(-0.44, -0.04, -0.3),
+    jitter(new THREE.IcosahedronGeometry(0.5, 1), 4, 0.28).translate(0.05, 0.62, 0.1),
+    new THREE.CylinderGeometry(0.07, 0.11, 1.3, 6).translate(0, -1.08, 0),
   ];
   const crown = mergeGeometries(lobes.map((gm) => (gm.index ? gm.toNonIndexed() : gm)))!;
-  const treeMat = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 1, envMapIntensity: 0.35 });
+  const treeMat = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.92, envMapIntensity: 0.35, flatShading: false });
   const TREES = 1100;
   const trees = new THREE.InstancedMesh(crown, treeMat, TREES);
   for (let i = 0; i < TREES; i++) {
@@ -674,7 +861,7 @@ export function buildContext() {
     const yaw = new THREE.Quaternion().setFromAxisAngle(up, r() * Math.PI * 2);
     m4.compose(new THREE.Vector3(x, s * 1.6 + 1.2, z), yaw, new THREE.Vector3(s, s * 1.15, s));
     trees.setMatrixAt(i, m4);
-    col.setHSL(0.2 + r() * 0.07, 0.22 + r() * 0.14, 0.15 + r() * 0.08);
+    col.setHSL(0.17 + r() * 0.1, 0.24 + r() * 0.18, 0.13 + r() * 0.09);
     trees.setColorAt(i, col);
   }
   trees.castShadow = true;
@@ -705,5 +892,5 @@ export function buildContext() {
   }
   group.add(lamps);
 
-  return { group, ctxMat, lampMat };
+  return { group, ctxMat, lampMat, treeMat };
 }

@@ -9,7 +9,11 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { LAKE_CENTER, buildComplex, buildContext, lakeShape, waterNormals } from "./world";
+import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
+import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
+import { buildTraffic } from "./traffic";
+import { addWind, buildCloudShadows, buildClouds } from "./atmosphere";
+import { LAKE_CENTER, ROADS, buildComplex, buildContext, lakeShape, waterNormals } from "./world";
 
 /** 필름 그레이드 — 비네트 · 미세 색수차 · 그레인 · 틸/앰버 톤 (sRGB 출력 후 적용) */
 const CineShader = {
@@ -55,9 +59,9 @@ type Shot = {
 };
 
 export const SHOTS: Shot[] = [
-  { pos: [260, 30, 430], look: [-100, 50, 70], sun: 3.2, night: 0.06, lit: 0.12, fov: 38 }, // 0 표지 — 서해 낙조 역광
+  { pos: [260, 30, 430], look: [-100, 56, 70], sun: 8.5, night: 0, lit: 0.06, fov: 38 }, // 0 표지 — 서해 낙조 역광
   { pos: [40, 560, 140], look: [0, 0, 0], sun: 52, night: 0, lit: 0, fov: 38 }, // 1 대지 — 수직 조감
-  { pos: [-170, 7, 470], look: [0, 46, 0], sun: 3.5, night: 0.05, lit: 0, fov: 36 }, // 2 호수 수면
+  { pos: [-170, 7, 470], look: [0, 46, 0], sun: 6, night: 0.02, lit: 0, fov: 36 }, // 2 호수 수면
   { pos: [150, 70, 150], look: [10, 52, 20], sun: 0.5, night: 0.35, lit: 0.35, fov: 40 }, // 3 입면
   { pos: [-300, 120, 420], look: [0, 42, 0], sun: -7, night: 1, lit: 0.799, fov: 36 }, // 4 밤 — 상환한계 점등
   { pos: [-380, 230, 560], look: [0, 30, 40], sun: -9, night: 1, lit: "live", fov: 34 }, // 5 문서
@@ -96,8 +100,8 @@ export default function Scene() {
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#b9b2a6", 1100, 7600);
-    const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 1, 24000);
+    scene.fog = new THREE.Fog("#b9b2a6", 1500, 11000);
+    const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 2, 24000);
 
     /* 하늘 · 빛 */
     const sky = new Sky();
@@ -111,9 +115,9 @@ export default function Scene() {
 
     const sun = new THREE.DirectionalLight("#fff1dc", 3);
     sun.castShadow = !mobile;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(4096, 4096);
     const sc = sun.shadow.camera;
-    sc.left = -260; sc.right = 260; sc.top = 260; sc.bottom = -260; sc.near = 10; sc.far = 2200;
+    sc.left = -340; sc.right = 340; sc.top = 340; sc.bottom = -340; sc.near = 10; sc.far = 2400;
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.6;
     scene.add(sun, sun.target);
@@ -149,6 +153,35 @@ export default function Scene() {
     const complex = buildComplex();
     scene.add(complex.group);
 
+    /* 유리 반사 — 실제 도시 HDRI(CC0)를 유리 재질에만 입혀 하늘과 건물이 비치게 한다 */
+    let glassEnvRT: THREE.WebGLRenderTarget | null = null;
+    let disposed = false;
+    import("@pmndrs/assets/hdri/city.exr")
+      .then((mod) => new EXRLoader().loadAsync(mod.default))
+      .then((tex) => {
+        if (disposed) return tex.dispose();
+        tex.mapping = THREE.EquirectangularReflectionMapping;
+        glassEnvRT = pmrem.fromEquirectangular(tex);
+        tex.dispose();
+        for (const m of complex.glassMats) {
+          m.envMap = glassEnvRT.texture;
+          m.needsUpdate = true;
+        }
+        ctx.ctxMat.envMap = glassEnvRT.texture;
+        ctx.ctxMat.needsUpdate = true;
+      })
+      .catch(() => {});
+
+    /* 시간 축 — 구름 · 구름 그림자 · 차량 · 바람 */
+    const clouds = buildClouds();
+    scene.add(clouds.mesh);
+    const cloudShadow = buildCloudShadows();
+    scene.add(cloudShadow.mesh);
+    const traffic = buildTraffic(ROADS, mobile ? 160 : 420);
+    scene.add(traffic.group);
+    const windTime = { value: 0 };
+    addWind(ctx.treeMat, windTime);
+
     const water = new Water(new THREE.ShapeGeometry(lakeShape(), 48), {
       textureWidth: mobile ? 512 : 1024,
       textureHeight: mobile ? 512 : 1024,
@@ -156,17 +189,28 @@ export default function Scene() {
       sunDirection: new THREE.Vector3(),
       sunColor: 0xfff1dc,
       waterColor: 0x0e1e2c,
-      distortionScale: 1.1,
+      distortionScale: 0.32,
       fog: true,
     });
     water.rotation.x = -Math.PI / 2;
     water.position.set(LAKE_CENTER.x, 0.4, LAKE_CENTER.z);
-    (water.material as THREE.ShaderMaterial).uniforms.size.value = 2.4;
+    (water.material as THREE.ShaderMaterial).uniforms.size.value = 1.4;
     scene.add(water);
 
     /* 후처리 — 야간 창·가로등 번짐 */
-    const composer = new EffectComposer(renderer);
+    // MSAA 렌더 타깃 — 후처리를 거쳐도 가장자리 계단 현상이 없도록
+    const msaa = new THREE.WebGLRenderTarget(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio(), {
+      type: THREE.HalfFloatType,
+      samples: mobile ? 2 : 4,
+    });
+    const composer = new EffectComposer(renderer, msaa);
     composer.addPass(new RenderPass(scene, camera));
+    // 앰비언트 오클루전 — 발코니 아래 · 동 사이 · 수관 밑의 접촉 음영
+    const gtao = new GTAOPass(scene, camera, innerWidth, innerHeight);
+    gtao.updateGtaoMaterial({ radius: 7, distanceExponent: 1.6, thickness: 6, scale: 1.25, samples: 12, distanceFallOff: 1 });
+    gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: 12 });
+    gtao.blendIntensity = 0.85;
+    if (!mobile) composer.addPass(gtao);
     const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0, 0.55, 0.82);
     if (!mobile) composer.addPass(bloom);
     composer.addPass(new OutputPass());
@@ -223,13 +267,16 @@ export default function Scene() {
     };
     const tgtPos = new THREE.Vector3();
     const tgtLook = new THREE.Vector3();
-    const fogDay = new THREE.Color("#c4b9a8");
-    const fogDusk = new THREE.Color("#c29a78");
+    const fogDay = new THREE.Color("#b7c0ca");
+    const fogDusk = new THREE.Color("#c9a585");
     const fogNight = new THREE.Color("#0b1220");
     const fogCol = new THREE.Color();
 
     const clock = new THREE.Clock();
     let flyStart = 0;
+    let degraded = false;
+    let adaptiveChecks = 0;
+    const frameMs: number[] = [];
     let raf = 0;
     let visible = true;
     const onVis = () => (visible = document.visibilityState === "visible");
@@ -275,6 +322,13 @@ export default function Scene() {
 
       if (covered && !reduce) return;
 
+      // 4D — 시간에 따라 흐르는 것들
+      const flow = reduce ? 0 : elapsed;
+      clouds.uniforms.uTime.value = flow;
+      cloudShadow.uniforms.uTime.value = flow;
+      windTime.value = flow;
+      traffic.update(flow);
+
       camera.position.copy(cur.pos);
       camera.lookAt(cur.look);
       if (Math.abs(camera.fov - cur.fov) > 0.01) {
@@ -301,7 +355,7 @@ export default function Scene() {
 
       fogCol.copy(fogDay).lerp(fogDusk, 1 - dayK).lerp(fogNight, cur.night);
       (scene.fog as THREE.Fog).color.copy(fogCol);
-      renderer.toneMappingExposure = lerp(0.62, 0.92, cur.night);
+      renderer.toneMappingExposure = lerp(0.74, 0.95, cur.night);
 
       // 창 점등 (= 분양률)
       complex.setLit(cur.lit);
@@ -311,6 +365,35 @@ export default function Scene() {
       ctx.lampMat.opacity = THREE.MathUtils.smoothstep(cur.night, 0.4, 1);
       bloom.strength = 0.18 * (1 - dayK) + 0.62 * THREE.MathUtils.smoothstep(cur.night, 0.3, 1);
       cine.uniforms.uTime.value = elapsed;
+      clouds.uniforms.uSunDir.value.copy(sunVec);
+      clouds.uniforms.uSunCol.value.copy(sun.color);
+      clouds.uniforms.uSky.value.copy(fogCol);
+      clouds.uniforms.uNight.value = cur.night;
+      cloudShadow.uniforms.uSunDir.value.copy(sunVec);
+      cloudShadow.uniforms.uStrength.value = 0.34 * above * (1 - cur.night);
+      cloudShadow.mesh.visible = above > 0.05;
+      traffic.setNight(THREE.MathUtils.smoothstep(cur.night, 0.2, 0.8) + (1 - dayK) * 0.35);
+      for (const m of complex.glassMats) m.envMapIntensity = 0.15 + 0.85 * above * (0.6 + 0.4 * dayK);
+      ctx.ctxMat.envMapIntensity = 0.15 + 0.85 * above;
+
+      // 적응형 품질 — 느린 기기에서는 AO · 블룸을 끄고 해상도를 낮춘다
+      if (!degraded && elapsed > 3) {
+        frameMs.push(dt * 1000);
+        if (frameMs.length > 90) {
+          const sorted = [...frameMs].sort((x, y) => x - y);
+          if (sorted[45] > 34) {
+            degraded = true;
+            gtao.enabled = false;
+            bloom.enabled = false;
+            renderer.setPixelRatio(1);
+            composer.setPixelRatio?.(1);
+            onResize();
+          }
+          frameMs.length = 0;
+          adaptiveChecks++;
+          if (adaptiveChecks > 3) degraded = true; // 충분히 확인함
+        }
+      }
       cine.uniforms.uVig.value = 0.36 + 0.14 * cur.night;
 
       composer.render();
@@ -323,6 +406,7 @@ export default function Scene() {
       camera.updateProjectionMatrix();
       renderer.setSize(innerWidth, innerHeight);
       composer.setSize(innerWidth, innerHeight);
+      gtao.setSize(innerWidth, innerHeight);
       cine.uniforms.uRes.value.set(innerWidth, innerHeight);
     };
     addEventListener("resize", onResize);
@@ -333,7 +417,9 @@ export default function Scene() {
       window.removeEventListener("lf:lit", onLit);
       document.removeEventListener("visibilitychange", onVis);
       mo.disconnect();
+      disposed = true;
       envRT?.dispose();
+      glassEnvRT?.dispose();
       pmrem.dispose();
       composer.dispose();
       renderer.dispose();

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fontsource/noto-serif-kr": "^5.2.8",
+    "@pmndrs/assets": "^1.7.0",
     "lenis": "1.3.27",
     "next": "15.5.29",
     "pretendard": "^1.3.9",

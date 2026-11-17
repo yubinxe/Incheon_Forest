@@ -12,6 +12,7 @@ const INFRA: { cat: string; name: string; rel: string; note: string }[] = [
   { cat: "도로", name: "인천국제공항고속도로 청라IC", rel: "청라국제도시 북서측", note: "공항 · 서울 방면 광역 접근" },
   { cat: "도로", name: "청라–영종 해상교량(제3연륙교)", rel: "청라국제도시 서측", note: "영종도 연결 · 통행 조건은 재확인" },
   { cat: "상업", name: "커낼웨이 수변 상업가로", rel: "호수공원과 연결된 수로", note: "근린상업 · 보행 축" },
+  { cat: "수변", name: "경인아라뱃길", rel: "청라국제도시 북측", note: "서해와 한강을 잇는 운하 · 수변 산책로" },
 ];
 
 export function Location() {
@@ -33,6 +34,9 @@ export function Location() {
             <text x="22" y="210" className="m-sea">서해</text>
             {/* 영종 연결 교량 */}
             <line x1="40" y1="300" x2="150" y2="300" className="m-bridge" />
+            {/* 경인아라뱃길 */}
+            <path d="M84 30 C240 34 420 22 640 26" className="m-canal" />
+            <text x="470" y="18" className="m-lbl m-small">경인아라뱃길</text>
             {/* 공항고속도로 */}
             <path d="M40 92 C200 96 300 70 640 64" className="m-hwy" />
             <circle cx="208" cy="92" r="7" className="m-ic" />
