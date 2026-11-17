@@ -50,7 +50,7 @@ export default function Page() {
             <p className="cover-kicker">
               <span>사업계획서</span>
               <span>시행사 사업 PM 검토본</span>
-              <span>기준일 {PROJECT.baseDate}</span>
+              <span>기준일 {PROJECT.baseDate.replaceAll("-", ".")}</span>
             </p>
             <h1>
               호수공원 첫 열,

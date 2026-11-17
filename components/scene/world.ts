@@ -443,7 +443,14 @@ export function waterNormals(size = 256) {
  * 셰이더가 인스턴스 크기에 맞춰 반복시켜 어느 동이든 층고 2.9m · 창폭 2.4m가 유지된다.
  */
 const CTX_TILE = new THREE.Vector2(38.4, 185.6);
-function genericFacade(seed: number) {
+/** 입면 변형 — 바탕색 · 유리 색 · 측면 띠(단지별 아이덴티티 컬러) */
+const CTX_VARIANTS = [
+  { wall: "#eeebe4", glass: [64, 78, 92], band: "#faf8f3", stripe: null as string | null },
+  { wall: "#e6e3dc", glass: [58, 74, 84], band: "#f4f2ee", stripe: "#7c8a99" },
+  { wall: "#f0ece2", glass: [70, 80, 90], band: "#fbf9f4", stripe: "#a58a62" },
+];
+function genericFacade(seed: number, variant = 0) {
+  const V = CTX_VARIANTS[variant % CTX_VARIANTS.length];
   const W = 128, H = 512;
   const mk = () => {
     const c = document.createElement("canvas");
@@ -454,7 +461,7 @@ function genericFacade(seed: number) {
   const c = mk(), rmC = mk(), glow = mk();
   const g = c.getContext("2d")!, m = rmC.getContext("2d")!, gg = glow.getContext("2d")!;
   const r = rng(seed);
-  g.fillStyle = "#f1eee8";
+  g.fillStyle = V.wall;
   g.fillRect(0, 0, W, H);
   m.fillStyle = "rgb(0,225,0)";
   m.fillRect(0, 0, W, H);
@@ -463,8 +470,8 @@ function genericFacade(seed: number) {
   for (let y = 0; y < H; y += 8) {
     for (let x = 0; x < W; x += 8) {
       if ((x / 8) % 4 === 0) continue;
-      const t = r() * 18;
-      g.fillStyle = `rgb(${38 + t},${48 + t},${58 + t})`;
+      const t = r() * 22;
+      g.fillStyle = `rgb(${V.glass[0] + t},${V.glass[1] + t},${V.glass[2] + t})`;
       g.fillRect(x + 0.5, y + 1, 7, 5.5);
       m.fillStyle = `rgb(0,${Math.round(12 + r() * 30)},${110})`;
       m.fillRect(x + 0.5, y + 1, 7, 5.5);
@@ -478,10 +485,17 @@ function genericFacade(seed: number) {
       }
     }
     // 발코니 슬래브 밴드 — 밝은 수평선과 그 아래 그림자
-    g.fillStyle = "#faf8f3";
+    g.fillStyle = V.band;
     g.fillRect(0, y + 6.5, W, 1.5);
     g.fillStyle = "rgba(0,0,0,0.12)";
     g.fillRect(0, y, W, 1);
+  }
+  if (V.stripe) {
+    // 측면 수직 띠 — 한 타일(16열) 마다 1열
+    g.fillStyle = V.stripe;
+    g.fillRect(0, 0, 8, H);
+    m.fillStyle = "rgb(0,150,40)";
+    m.fillRect(0, 0, 8, H);
   }
   const tex = (cv: HTMLCanvasElement, color: boolean) => {
     const t = new THREE.CanvasTexture(cv);
@@ -559,20 +573,32 @@ function roadTexture() {
 /** 저채도 지면 노이즈 */
 function groundTexture() {
   const c = document.createElement("canvas");
-  c.width = c.height = 256;
+  c.width = c.height = 512;
   const g = c.getContext("2d")!;
-  g.fillStyle = "#a8a293";
-  g.fillRect(0, 0, 256, 256);
+  g.fillStyle = "#8f8d82";
+  g.fillRect(0, 0, 512, 512);
   const r = rng(11);
-  for (let i = 0; i < 1400; i++) {
-    const v = 120 + r() * 80;
-    g.fillStyle = `rgba(${v},${v - 6},${v - 18},0.08)`;
-    g.fillRect(r() * 256, r() * 256, 1 + r() * 10, 1 + r() * 10);
+  // 단지 조경 · 공원 녹지 덩어리
+  for (let i = 0; i < 70; i++) {
+    const x = r() * 512, y = r() * 512, rr = 12 + r() * 46;
+    const grad = g.createRadialGradient(x, y, 0, x, y, rr);
+    const gr = `${78 + r() * 20},${98 + r() * 20},${62 + r() * 12}`;
+    grad.addColorStop(0, `rgba(${gr},0.85)`);
+    grad.addColorStop(1, `rgba(${gr},0)`);
+    g.fillStyle = grad;
+    g.fillRect(x - rr, y - rr, rr * 2, rr * 2);
+  }
+  // 포장 · 주차 · 보행로 결
+  for (let i = 0; i < 2600; i++) {
+    const v = 110 + r() * 70;
+    g.fillStyle = `rgba(${v},${v - 4},${v - 14},0.07)`;
+    g.fillRect(r() * 512, r() * 512, 1 + r() * 14, 1 + r() * 14);
   }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(60, 60);
+  t.repeat.set(140, 140);
+  t.anisotropy = 8;
   return t;
 }
 
@@ -593,22 +619,22 @@ export const ROADS: [number, number, number, number][] = [
 const onRoad = (x: number, z: number, pad: number) =>
   ROADS.some(([rx, rz, w, d]) => Math.abs(x - rx) < w / 2 + pad && Math.abs(z - rz) < d / 2 + pad);
 
-export function buildContext() {
+export function buildContext(opt: { buildings: number; trees: number } = { buildings: 380, trees: 1100 }) {
   const group = new THREE.Group();
   const r = rng(2026);
 
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(9000, 9000),
+    new THREE.PlaneGeometry(40000, 40000),
     new THREE.MeshStandardMaterial({ map: groundTexture(), roughness: 1 }),
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.position.x = COAST_X + 4500;
+  ground.position.x = COAST_X + 20000;
   ground.receiveShadow = true;
   group.add(ground);
 
   // 서해 — 하늘을 비추는 넓은 수면 + 원경 섬(영종) 실루엣
   const seaMat = new THREE.MeshStandardMaterial({ color: "#2a3f4f", roughness: 0.16, metalness: 0.92, envMapIntensity: 1.1 });
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(14000, 16000), seaMat);
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(14000, 40000), seaMat);
   sea.rotation.x = -Math.PI / 2;
   sea.position.set(COAST_X - 7000 + 40, 0.25, 0);
   group.add(sea);
@@ -733,22 +759,26 @@ export function buildContext() {
   }
 
   // 주변 고층 주거 (청라국제도시 맥락) — 호수변은 고층 링, 바깥은 중고층 · 도로·호수·사업지·바다 제외
-  const { day, rm, em } = genericFacade(77);
-  const ctxMat = new THREE.MeshStandardMaterial({
-    map: day,
-    roughnessMap: rm,
-    metalnessMap: rm,
-    roughness: 1,
-    metalness: 1,
-    emissiveMap: em,
-    emissive: new THREE.Color("#ffffff"),
-    emissiveIntensity: 0,
+  const ctxMats = CTX_VARIANTS.map((_, vi) => {
+    const { day, rm, em } = genericFacade(77 + vi * 19, vi);
+    const mat = new THREE.MeshStandardMaterial({
+      map: day,
+      roughnessMap: rm,
+      metalnessMap: rm,
+      roughness: 1,
+      metalness: 1,
+      emissiveMap: em,
+      emissive: new THREE.Color("#ffffff"),
+      emissiveIntensity: 0,
+    });
+    tileByInstanceScale(mat);
+    return mat;
   });
-  tileByInstanceScale(ctxMat);
   const box = new THREE.BoxGeometry(1, 1, 1);
   box.translate(0, 0.5, 0);
-  const COUNT = 380;
-  const inst = new THREE.InstancedMesh(box, ctxMat, COUNT);
+  const COUNT = opt.buildings;
+  const insts = ctxMats.map((mat) => new THREE.InstancedMesh(box, mat, COUNT));
+  const nV = [0, 0, 0];
   const crownMat = new THREE.MeshStandardMaterial({ color: "#d4cdbf", roughness: 0.55, metalness: 0.3 });
   const crowns = new THREE.InstancedMesh(box, crownMat, COUNT);
   const podMat = new THREE.MeshStandardMaterial({ color: "#8f8a80", roughness: 0.7, metalness: 0.15 });
@@ -789,8 +819,10 @@ export function buildContext() {
     PZ[placed] = z;
     q.setFromAxisAngle(up, (Math.round(r() * 2) - 1) * 0.05 + (r() < 0.12 ? Math.PI / 2 : 0));
     m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(w, h, d));
-    inst.setMatrixAt(placed, m4);
-    inst.setColorAt(placed, col.set(tones[Math.floor(r() * tones.length)]));
+    const vi = placed % insts.length;
+    insts[vi].setMatrixAt(nV[vi], m4);
+    insts[vi].setColorAt(nV[vi], col.set(tones[Math.floor(r() * tones.length)]));
+    nV[vi]++;
     m4.compose(new THREE.Vector3(x, h, z), q, new THREE.Vector3(w * 0.42, 6 + r() * 5, d * 0.6));
     crowns.setMatrixAt(placed, m4);
     if (cbd && nPod < 140) {
@@ -802,11 +834,13 @@ export function buildContext() {
   pods.count = nPod;
   pods.castShadow = pods.receiveShadow = true;
   group.add(pods);
-  inst.count = placed;
+  insts.forEach((m, vi) => {
+    m.count = nV[vi];
+    m.castShadow = m.receiveShadow = true;
+    group.add(m);
+  });
   crowns.count = placed;
-  inst.castShadow = true;
-  inst.receiveShadow = true;
-  group.add(inst, crowns);
+  group.add(crowns);
 
   // 수목 — 세 덩이를 겹쳐 나무 윤곽으로
   const jitter = (g: THREE.BufferGeometry, seed: number, amt: number) => {
@@ -834,25 +868,35 @@ export function buildContext() {
   ];
   const crown = mergeGeometries(lobes.map((gm) => (gm.index ? gm.toNonIndexed() : gm)))!;
   const treeMat = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.92, envMapIntensity: 0.35, flatShading: false });
-  const TREES = 1100;
+  const TREES = opt.trees;
+  const nComplex = 170;
+  const nLake = Math.round((TREES - nComplex) * 0.42);
+  const nYard = Math.round((TREES - nComplex) * 0.33);
   const trees = new THREE.InstancedMesh(crown, treeMat, TREES);
   for (let i = 0; i < TREES; i++) {
     let x: number, z: number;
-    if (i < 560) {
+    if (i < nLake) {
       const a = r() * Math.PI * 2;
       const rr = 1.04 + r() * 0.2;
       x = LAKE_CENTER.x + Math.cos(a) * 520 * rr;
       z = LAKE_CENTER.z + Math.sin(a) * 165 * rr;
-    } else if (i < 720) {
+    } else if (i < nLake + nComplex) {
       x = (r() - 0.5) * 220;
       z = (r() - 0.5) * 120;
       if (TOWERS.some((t) => Math.abs(x - t.x) < t.w / 2 + 4 && Math.abs(z - t.z) < t.d / 2 + 4)) {
         x = (r() - 0.5) * 140;
         z = 4 + (r() - 0.5) * 20;
       }
+    } else if (i < nLake + nComplex + nYard && placed > 0) {
+      // 주변 단지 조경 — 동 사이 녹지
+      const b = Math.floor(r() * placed);
+      const a = r() * Math.PI * 2;
+      const rr = 30 + r() * 16;
+      x = PX[b] + Math.cos(a) * rr;
+      z = PZ[b] + Math.sin(a) * rr * 0.8;
     } else {
       // 가로수
-      const k = i - 720;
+      const k = i - (nLake + nComplex + nYard);
       const row = [-128, -94, 74, 108][k % 4];
       x = -1300 + (k / 4) * 28 + (r() - 0.5) * 4;
       z = row + (r() - 0.5) * 2;
@@ -892,5 +936,5 @@ export function buildContext() {
   }
   group.add(lamps);
 
-  return { group, ctxMat, lampMat, treeMat };
+  return { group, ctxMats, lampMat, treeMat };
 }

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
-import "@fontsource/noto-serif-kr/500.css";
-import "@fontsource/noto-serif-kr/700.css";
+import "@fontsource-variable/noto-serif-kr";
 import "./globals.css";
 
 export const metadata: Metadata = {

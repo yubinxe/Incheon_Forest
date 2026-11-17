@@ -51,7 +51,9 @@ export function buildClouds() {
         vec3 col = mix(shadowCol, uSunCol * 1.15 + 0.1, lit * clamp(uSunDir.y * 4.0 + 0.35, 0.0, 1.0));
         col = mix(col, vec3(0.05, 0.07, 0.11), uNight);
         float r = length(vW.xz - cameraPosition.xz);
-        float fade = 1.0 - smoothstep(9000.0, 13000.0, r);
+        vec3 vd = normalize(vW - cameraPosition);
+        // 지평선 쪽 원거리 구름은 패턴이 뭉개져 회색 막처럼 보이므로 시야 고도각으로 걷어낸다
+        float fade = (1.0 - smoothstep(5000.0, 9000.0, r)) * smoothstep(0.08, 0.22, vd.y);
         gl_FragColor = vec4(col, d * 0.92 * fade);
         #include <colorspace_fragment>
       }

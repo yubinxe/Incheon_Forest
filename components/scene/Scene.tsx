@@ -13,6 +13,7 @@ import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { buildTraffic } from "./traffic";
 import { addWind, buildCloudShadows, buildClouds } from "./atmosphere";
+import { Governor, detectQuality } from "./quality";
 import { LAKE_CENTER, ROADS, buildComplex, buildContext, lakeShape, waterNormals } from "./world";
 
 /** 필름 그레이드 — 비네트 · 미세 색수차 · 그레인 · 틸/앰버 톤 (sRGB 출력 후 적용) */
@@ -83,24 +84,31 @@ export default function Scene() {
     const host = hostRef.current!;
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance", stencil: false });
     } catch {
       host.dataset.fallback = "1";
       return;
     }
-    const mobile = matchMedia("(max-width: 760px)").matches;
+    // 컨텍스트 소실(메모리 부족 등) 시 포스터 이미지로 대체
+    renderer.domElement.addEventListener("webglcontextlost", (e) => {
+      e.preventDefault();
+      host.dataset.fallback = "1";
+    });
+    const Q = detectQuality(renderer);
+    host.dataset.tier = String(Q.tier);
+    const mobile = Q.tier <= 1 && matchMedia("(pointer: coarse)").matches;
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 1.75));
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.maxDpr));
     renderer.setSize(innerWidth, innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.55;
-    renderer.shadowMap.enabled = !mobile;
+    renderer.toneMappingExposure = 0.7;
+    renderer.shadowMap.enabled = Q.shadow > 0;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#b9b2a6", 1500, 11000);
+    scene.fog = new THREE.Fog("#b9b2a6", 350, 9500);
     const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 2, 24000);
 
     /* 하늘 · 빛 */
@@ -114,8 +122,8 @@ export default function Scene() {
     scene.add(sky);
 
     const sun = new THREE.DirectionalLight("#fff1dc", 3);
-    sun.castShadow = !mobile;
-    sun.shadow.mapSize.set(4096, 4096);
+    sun.castShadow = Q.shadow > 0;
+    sun.shadow.mapSize.set(Q.shadow || 512, Q.shadow || 512);
     const sc = sun.shadow.camera;
     sc.left = -340; sc.right = 340; sc.top = 340; sc.bottom = -340; sc.near = 10; sc.far = 2400;
     sun.shadow.bias = -0.0004;
@@ -148,7 +156,7 @@ export default function Scene() {
     };
 
     /* 지형 · 단지 */
-    const ctx = buildContext();
+    const ctx = buildContext({ buildings: Q.buildings, trees: Q.trees });
     scene.add(ctx.group);
     const complex = buildComplex();
     scene.add(complex.group);
@@ -167,8 +175,10 @@ export default function Scene() {
           m.envMap = glassEnvRT.texture;
           m.needsUpdate = true;
         }
-        ctx.ctxMat.envMap = glassEnvRT.texture;
-        ctx.ctxMat.needsUpdate = true;
+        for (const m of ctx.ctxMats) {
+          m.envMap = glassEnvRT.texture;
+          m.needsUpdate = true;
+        }
       })
       .catch(() => {});
 
@@ -176,32 +186,40 @@ export default function Scene() {
     const clouds = buildClouds();
     scene.add(clouds.mesh);
     const cloudShadow = buildCloudShadows();
-    scene.add(cloudShadow.mesh);
-    const traffic = buildTraffic(ROADS, mobile ? 160 : 420);
+    if (Q.cloudShadow) scene.add(cloudShadow.mesh);
+    const traffic = buildTraffic(ROADS, Q.cars);
     scene.add(traffic.group);
     const windTime = { value: 0 };
     addWind(ctx.treeMat, windTime);
 
-    const water = new Water(new THREE.ShapeGeometry(lakeShape(), 48), {
-      textureWidth: mobile ? 512 : 1024,
-      textureHeight: mobile ? 512 : 1024,
+    // 수면 — 저사양은 반사 렌더 없이 환경맵 반사 재질로 대체(장면을 두 번 그리지 않음)
+    const lakeGeo = new THREE.ShapeGeometry(lakeShape(), 48);
+    if (Q.waterRes === 0) {
+      const cheap = new THREE.Mesh(lakeGeo, new THREE.MeshStandardMaterial({ color: "#1d3140", roughness: 0.06, metalness: 0.92 }));
+      cheap.rotation.x = -Math.PI / 2;
+      cheap.position.set(LAKE_CENTER.x, 0.4, LAKE_CENTER.z);
+      scene.add(cheap);
+    }
+    const water = new Water(lakeGeo, {
+      textureWidth: Q.waterRes || 16,
+      textureHeight: Q.waterRes || 16,
       waterNormals: waterNormals(),
       sunDirection: new THREE.Vector3(),
       sunColor: 0xfff1dc,
-      waterColor: 0x0e1e2c,
+      waterColor: 0x0a1822,
       distortionScale: 0.32,
       fog: true,
     });
     water.rotation.x = -Math.PI / 2;
     water.position.set(LAKE_CENTER.x, 0.4, LAKE_CENTER.z);
     (water.material as THREE.ShaderMaterial).uniforms.size.value = 1.4;
-    scene.add(water);
+    if (Q.waterRes > 0) scene.add(water);
 
     /* 후처리 — 야간 창·가로등 번짐 */
     // MSAA 렌더 타깃 — 후처리를 거쳐도 가장자리 계단 현상이 없도록
     const msaa = new THREE.WebGLRenderTarget(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio(), {
       type: THREE.HalfFloatType,
-      samples: mobile ? 2 : 4,
+      samples: Q.msaa,
     });
     const composer = new EffectComposer(renderer, msaa);
     composer.addPass(new RenderPass(scene, camera));
@@ -210,13 +228,34 @@ export default function Scene() {
     gtao.updateGtaoMaterial({ radius: 7, distanceExponent: 1.6, thickness: 6, scale: 1.25, samples: 12, distanceFallOff: 1 });
     gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: 12 });
     gtao.blendIntensity = 0.85;
-    if (!mobile) composer.addPass(gtao);
-    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0, 0.55, 0.82);
-    if (!mobile) composer.addPass(bloom);
+    if (Q.ao) composer.addPass(gtao);
+    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0, 0.55, 0.82);
+    if (Q.bloom) composer.addPass(bloom);
     composer.addPass(new OutputPass());
     const cine = new ShaderPass(CineShader);
     cine.uniforms.uRes.value.set(innerWidth, innerHeight);
-    if (mobile) cine.uniforms.uGrain.value = 0.03;
+    if (Q.tier <= 1) cine.uniforms.uGrain.value = 0.032;
+
+    /* 동적 품질 — 프레임이 무거우면 해상도 → AO → 블룸 → 그림자 순으로 덜어낸다 */
+    const setDpr = (dpr: number) => {
+      renderer.setPixelRatio(dpr);
+      composer.setPixelRatio(dpr);
+      onResize();
+    };
+    const governor = new Governor(Q, setDpr, () => {
+      if (gtao.enabled && Q.ao) return !(gtao.enabled = false);
+      if (bloom.enabled && Q.bloom) return !(bloom.enabled = false);
+      if (sun.castShadow) {
+        sun.castShadow = false;
+        renderer.shadowMap.enabled = false;
+        scene.traverse((o) => {
+          const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+          if (m) m.needsUpdate = true;
+        });
+        return true;
+      }
+      return false;
+    });
     composer.addPass(cine);
 
     /* 스크롤 → 샷 */
@@ -274,9 +313,7 @@ export default function Scene() {
 
     const clock = new THREE.Clock();
     let flyStart = 0;
-    let degraded = false;
-    let adaptiveChecks = 0;
-    const frameMs: number[] = [];
+
     let raf = 0;
     let visible = true;
     const onVis = () => (visible = document.visibilityState === "visible");
@@ -355,13 +392,13 @@ export default function Scene() {
 
       fogCol.copy(fogDay).lerp(fogDusk, 1 - dayK).lerp(fogNight, cur.night);
       (scene.fog as THREE.Fog).color.copy(fogCol);
-      renderer.toneMappingExposure = lerp(0.74, 0.95, cur.night);
+      renderer.toneMappingExposure = lerp(0.7, 0.95, cur.night);
 
       // 창 점등 (= 분양률)
       complex.setLit(cur.lit);
       const glow = 1.35 * THREE.MathUtils.smoothstep(cur.night, 0.15, 0.85);
       for (const m of complex.materials) m.emissiveIntensity = glow;
-      ctx.ctxMat.emissiveIntensity = glow * 0.32;
+      for (const m of ctx.ctxMats) m.emissiveIntensity = glow * 0.32;
       ctx.lampMat.opacity = THREE.MathUtils.smoothstep(cur.night, 0.4, 1);
       bloom.strength = 0.18 * (1 - dayK) + 0.62 * THREE.MathUtils.smoothstep(cur.night, 0.3, 1);
       cine.uniforms.uTime.value = elapsed;
@@ -374,27 +411,9 @@ export default function Scene() {
       cloudShadow.mesh.visible = above > 0.05;
       traffic.setNight(THREE.MathUtils.smoothstep(cur.night, 0.2, 0.8) + (1 - dayK) * 0.35);
       for (const m of complex.glassMats) m.envMapIntensity = 0.15 + 0.85 * above * (0.6 + 0.4 * dayK);
-      ctx.ctxMat.envMapIntensity = 0.15 + 0.85 * above;
+      for (const m of ctx.ctxMats) m.envMapIntensity = 0.15 + 0.85 * above;
 
-      // 적응형 품질 — 느린 기기에서는 AO · 블룸을 끄고 해상도를 낮춘다
-      if (!degraded && elapsed > 3) {
-        frameMs.push(dt * 1000);
-        if (frameMs.length > 90) {
-          const sorted = [...frameMs].sort((x, y) => x - y);
-          if (sorted[45] > 34) {
-            degraded = true;
-            gtao.enabled = false;
-            bloom.enabled = false;
-            renderer.setPixelRatio(1);
-            composer.setPixelRatio?.(1);
-            onResize();
-          }
-          frameMs.length = 0;
-          adaptiveChecks++;
-          if (adaptiveChecks > 3) degraded = true; // 충분히 확인함
-        }
-      }
-      cine.uniforms.uVig.value = 0.36 + 0.14 * cur.night;
+      governor.sample(dt * 1000);
 
       composer.render();
     };
