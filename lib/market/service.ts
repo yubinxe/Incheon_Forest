@@ -34,13 +34,23 @@ class SourceError extends Error {
   }
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function getText(url: string, source: string): Promise<string> {
-  const res = await fetch(url, {
-    next: { revalidate: DAY },
-    signal: AbortSignal.timeout(15000),
-    headers: { Accept: "application/json, application/xml;q=0.9" },
-  });
-  const body = await res.text();
+  let res: Response | null = null;
+  let body = "";
+  // 공공데이터포털 초당 호출 한도(429) — 지수 백오프로 최대 4회
+  for (let attempt = 0; attempt < 4; attempt++) {
+    res = await fetch(url, {
+      next: { revalidate: DAY },
+      signal: AbortSignal.timeout(15000),
+      headers: { Accept: "application/json, application/xml;q=0.9" },
+    });
+    body = await res.text();
+    if (res.status !== 429 && !/LIMITED_NUMBER_OF_SERVICE_REQUESTS_PER_SECOND/.test(body)) break;
+    await sleep(700 * 2 ** attempt);
+  }
+  if (!res) throw new SourceError(source, "응답 없음");
   if (!res.ok) {
     // 게이트웨이 사유(미승인·키 오류 등)를 함께 남긴다 — 응답 본문에는 키가 없다
     const hint = body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
@@ -134,12 +144,14 @@ function staticRegion(input: string) {
  * 신규 시군구코드 탐색 — 법정동코드 API를 쓸 수 없을 때, 인천 후보 코드(281xx~282xx, 끝자리 0·5)에
  * 최근 1개월 전월세를 조회해 해당 법정동 거래가 나오는 코드를 찾는다. 30일 캐시.
  */
+const NEGATIVE_PROBE = new Map<string, number>();
+
 const discoverSgg = unstable_cache(
   async (key: string, dong: string, ym: string) => {
     const candidates: string[] = [];
     for (let c = 28100; c <= 28295; c += 5) candidates.push(String(c));
     const hits: { code: string; rows: number }[] = [];
-    await mapLimit(candidates, 8, async (code) => {
+    await mapLimit(candidates, 2, async (code) => {
       try {
         const rows = await fetchRtms(key, "AptRent", code, ym);
         const n = rows.filter((r) => r.umdNm?.trim() === dong).length;
@@ -148,9 +160,10 @@ const discoverSgg = unstable_cache(
         /* 후보 실패는 무시 */
       }
     });
+    if (!hits.length) throw new Error("탐색 결과 없음"); // 빈 결과는 캐시하지 않는다
     return hits.sort((a, b) => b.rows - a.rows);
   },
-  ["sgg-discovery-v1"],
+  ["sgg-discovery-v2"],
   { revalidate: 86400 * 30 },
 );
 
@@ -237,7 +250,16 @@ export async function buildMarket(region: string) {
     log("법정동코드", 0, msg);
     const fb = staticRegion(region);
     if (!fb) return { status: "error" as const, fetchedAt, region, message: `법정동코드 확인 실패: ${msg}` };
-    const probe = await discoverSgg(key, fb.dong, recentMonths(2)[1]);
+    // 탐색 실패는 인스턴스 메모리에 1시간만 기억 — 매 요청마다 40회 탐색을 반복하지 않도록
+    const negKey = `${fb.dong}:${recentMonths(2)[1]}`;
+    const neg = NEGATIVE_PROBE.get(negKey);
+    const probe =
+      neg && Date.now() - neg < 3600_000
+        ? []
+        : await discoverSgg(key, fb.dong, recentMonths(2)[1]).catch(() => {
+            NEGATIVE_PROBE.set(negKey, Date.now());
+            return [] as { code: string; rows: number }[];
+          });
     for (const h of probe) {
       if (!fb.codes.some((c) => c.code === h.code))
         fb.codes.unshift({ code: h.code, label: `실거래 탐색으로 확인 (${fb.dong} 전월세 ${h.rows}건)`, source: "probe" });
@@ -314,7 +336,7 @@ export async function buildMarket(region: string) {
   const jobs = reg.codes.flatMap((c) => months12.map((ym) => ({ code: c.code, ym })));
   const presaleRows: Record<string, string>[] = [];
   const rentRows: Record<string, string>[] = [];
-  await mapLimit(jobs, 6, async ({ code, ym }) => {
+  await mapLimit(jobs, 2, async ({ code, ym }) => {
     const p = await safe("분양권전매", () => fetchRtms(key, "SilvTrade", code, ym));
     const r = months6.includes(ym) ? await safe("전월세", () => fetchRtms(key, "AptRent", code, ym)) : [];
     presaleRows.push(...p);

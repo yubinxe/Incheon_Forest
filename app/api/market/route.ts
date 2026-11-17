@@ -6,7 +6,7 @@ import { rawDataPortalKey } from "@/lib/market/key";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic"; // 빌드 시 API 호출 금지
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 class Uncacheable extends Error {
   constructor(public payload: unknown) {
@@ -19,9 +19,12 @@ const cached = unstable_cache(
   async (region: string) => {
     const r = await buildMarket(region);
     if (r.status !== "ok") throw new Uncacheable(r);
+    // 일부 출처 오류(429 등)가 있거나 실거래가 비어 있으면 캐시하지 않고 다음 요청에서 다시 받는다
+    const partial = r.logs.some((l) => l.error && l.source !== "법정동코드") || r.presale.raw + r.rent.raw === 0;
+    if (partial) throw new Uncacheable(r);
     return r;
   },
-  ["market-v2"],
+  ["market-v3"],
   { revalidate: 86400, tags: ["market"] },
 );
 
@@ -40,6 +43,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (e) {
     const payload = e instanceof Uncacheable ? e.payload : { status: "error", region, message: "시장 데이터 조회 중 오류" };
-    return NextResponse.json(payload, { status: 502, headers: { "Cache-Control": "no-store" } });
+    const ok = (payload as { status?: string })?.status === "ok";
+    return NextResponse.json(payload, { status: ok ? 200 : 502, headers: { "Cache-Control": "no-store" } });
   }
 }
