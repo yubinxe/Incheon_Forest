@@ -21,7 +21,7 @@ const cached = unstable_cache(
     if (r.status !== "ok") throw new Uncacheable(r);
     return r;
   },
-  ["market-v1"],
+  ["market-v2"],
   { revalidate: 86400, tags: ["market"] },
 );
 
