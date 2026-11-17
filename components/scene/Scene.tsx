@@ -8,7 +8,41 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { LAKE_CENTER, buildComplex, buildContext, lakeShape, waterNormals } from "./world";
+
+/** 필름 그레이드 — 비네트 · 미세 색수차 · 그레인 · 틸/앰버 톤 (sRGB 출력 후 적용) */
+const CineShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uTime: { value: 0 },
+    uGrain: { value: 0.045 },
+    uVig: { value: 0.42 },
+    uRes: { value: new THREE.Vector2(1, 1) },
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float uTime; uniform float uGrain; uniform float uVig; uniform vec2 uRes;
+    varying vec2 vUv;
+    float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
+    void main(){
+      vec2 c = vUv - 0.5;
+      float d = length(c);
+      vec2 off = c * 0.0035 * d;
+      vec3 col;
+      col.r = texture2D(tDiffuse, vUv + off).r;
+      col.g = texture2D(tDiffuse, vUv).g;
+      col.b = texture2D(tDiffuse, vUv - off).b;
+      float lum = dot(col, vec3(0.299, 0.587, 0.114));
+      col = mix(col, col * vec3(1.06, 1.0, 0.92), smoothstep(0.45, 1.0, lum));
+      col += vec3(-0.012, 0.004, 0.02) * (1.0 - smoothstep(0.0, 0.45, lum));
+      col = mix(col, smoothstep(0.0, 1.0, col), 0.22);
+      col *= mix(1.0, 1.0 - uVig, smoothstep(0.28, 0.82, d));
+      float n = hash(vUv * uRes + fract(uTime) * 91.7) - 0.5;
+      col += n * uGrain;
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+};
 
 /** 장면 키프레임 — 섹션의 data-shot 값이 이 배열의 인덱스 */
 type Shot = {
@@ -21,7 +55,7 @@ type Shot = {
 };
 
 export const SHOTS: Shot[] = [
-  { pos: [-300, 95, 600], look: [-170, 75, 0], sun: 3.2, night: 0, lit: 0, fov: 36 }, // 0 표지 — 노을 항공
+  { pos: [260, 30, 430], look: [-100, 50, 70], sun: 3.2, night: 0.06, lit: 0.12, fov: 38 }, // 0 표지 — 서해 낙조 역광
   { pos: [40, 560, 140], look: [0, 0, 0], sun: 52, night: 0, lit: 0, fov: 38 }, // 1 대지 — 수직 조감
   { pos: [-170, 7, 470], look: [0, 46, 0], sun: 3.5, night: 0.05, lit: 0, fov: 36 }, // 2 호수 수면
   { pos: [150, 70, 150], look: [10, 52, 20], sun: 0.5, night: 0.35, lit: 0.35, fov: 40 }, // 3 입면
@@ -62,17 +96,17 @@ export default function Scene() {
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#b9b2a6", 900, 4200);
-    const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 1, 20000);
+    scene.fog = new THREE.Fog("#b9b2a6", 1100, 7600);
+    const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 1, 24000);
 
     /* 하늘 · 빛 */
     const sky = new Sky();
     sky.scale.setScalar(12000);
     const su = sky.material.uniforms;
-    su.turbidity.value = 8;
-    su.rayleigh.value = 2.2;
-    su.mieCoefficient.value = 0.004;
-    su.mieDirectionalG.value = 0.86;
+    su.turbidity.value = 4.5;
+    su.rayleigh.value = 2.8;
+    su.mieCoefficient.value = 0.005;
+    su.mieDirectionalG.value = 0.84;
     scene.add(sky);
 
     const sun = new THREE.DirectionalLight("#fff1dc", 3);
@@ -136,6 +170,10 @@ export default function Scene() {
     const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0, 0.55, 0.82);
     if (!mobile) composer.addPass(bloom);
     composer.addPass(new OutputPass());
+    const cine = new ShaderPass(CineShader);
+    cine.uniforms.uRes.value.set(innerWidth, innerHeight);
+    if (mobile) cine.uniforms.uGrain.value = 0.03;
+    composer.addPass(cine);
 
     /* 스크롤 → 샷 */
     let liveLit = 0.8;
@@ -174,9 +212,10 @@ export default function Scene() {
       return { a, b, t };
     };
 
+    // 오프닝: 서해 상공 원경에서 출발해 단지로 활공
     const cur = {
-      pos: new THREE.Vector3(...SHOTS[0].pos),
-      look: new THREE.Vector3(...SHOTS[0].look),
+      pos: reduce ? new THREE.Vector3(...SHOTS[0].pos) : new THREE.Vector3(-2600, 760, 2600),
+      look: reduce ? new THREE.Vector3(...SHOTS[0].look) : new THREE.Vector3(-600, 60, 200),
       sun: SHOTS[0].sun,
       night: 0,
       lit: 0,
@@ -190,6 +229,7 @@ export default function Scene() {
     const fogCol = new THREE.Color();
 
     const clock = new THREE.Clock();
+    let flyStart = 0;
     let raf = 0;
     let visible = true;
     const onVis = () => (visible = document.visibilityState === "visible");
@@ -215,11 +255,16 @@ export default function Scene() {
       const litB = B.lit === "live" ? liveLit : B.lit;
 
       const dt = Math.min(0.05, clock.getDelta());
-      const damp = reduce ? 1 : 1 - Math.exp(-dt * 3.2);
       const elapsed = clock.elapsedTime;
+      const introOn = document.documentElement.dataset.intro === "on";
+      if (introOn) flyStart = elapsed;
+      const fly = THREE.MathUtils.smoothstep(elapsed - flyStart, 0, 6);
+      const damp = reduce ? 1 : introOn ? 0 : 1 - Math.exp(-dt * (0.35 + 2.85 * fly));
       // 미세한 호흡 — 정지 화면처럼 보이지 않도록
       const drift = reduce ? 0 : 1;
-      tgtPos.x += Math.sin(elapsed * 0.07) * 14 * drift;
+      const coverW = a === 0 ? 1 - k : b === 0 ? k : 0;
+      tgtPos.x += Math.sin(elapsed * 0.07) * (14 + 46 * coverW) * drift;
+      tgtPos.z += Math.cos(elapsed * 0.05) * 30 * coverW * drift;
       tgtPos.y += Math.sin(elapsed * 0.11) * 3 * drift;
       cur.pos.lerp(tgtPos, damp);
       cur.look.lerp(tgtLook, damp);
@@ -256,7 +301,7 @@ export default function Scene() {
 
       fogCol.copy(fogDay).lerp(fogDusk, 1 - dayK).lerp(fogNight, cur.night);
       (scene.fog as THREE.Fog).color.copy(fogCol);
-      renderer.toneMappingExposure = lerp(0.55, 0.9, cur.night);
+      renderer.toneMappingExposure = lerp(0.62, 0.92, cur.night);
 
       // 창 점등 (= 분양률)
       complex.setLit(cur.lit);
@@ -264,7 +309,9 @@ export default function Scene() {
       for (const m of complex.materials) m.emissiveIntensity = glow;
       ctx.ctxMat.emissiveIntensity = glow * 0.32;
       ctx.lampMat.opacity = THREE.MathUtils.smoothstep(cur.night, 0.4, 1);
-      bloom.strength = 0.6 * THREE.MathUtils.smoothstep(cur.night, 0.3, 1);
+      bloom.strength = 0.18 * (1 - dayK) + 0.62 * THREE.MathUtils.smoothstep(cur.night, 0.3, 1);
+      cine.uniforms.uTime.value = elapsed;
+      cine.uniforms.uVig.value = 0.36 + 0.14 * cur.night;
 
       composer.render();
     };
@@ -276,6 +323,7 @@ export default function Scene() {
       camera.updateProjectionMatrix();
       renderer.setSize(innerWidth, innerHeight);
       composer.setSize(innerWidth, innerHeight);
+      cine.uniforms.uRes.value.set(innerWidth, innerHeight);
     };
     addEventListener("resize", onResize);
 

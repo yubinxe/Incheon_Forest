@@ -51,7 +51,8 @@ export function Market() {
   return (
     <section id="market" className="doc-sec" data-shot="5">
       <SectionHead
-        no="Ⅲ"
+        no="05"
+        group="시장분석"
         title="분양 가정의 근거"
         lede="적용 분양가와 적용 분양률은 공공데이터포털 API로만 정합니다. 서버가 지역명을 법정동코드로 확인하고, 응답은 하루 동안 캐시됩니다."
       />
@@ -282,7 +283,8 @@ export function Thresholds() {
   return (
     <section id="thresholds" className="doc-sec" data-shot="5">
       <SectionHead
-        no="Ⅳ"
+        no="06"
+        group="사업수지"
         title="상환 한계선"
         lede="두 손익분기를 따로 봅니다. 기말현금 0은 후순위까지 모두 갚는 선, 기말현금 −48,000은 후순위를 포기하고 본PF만 전액 갚는 마지막 선입니다."
       />
@@ -412,7 +414,7 @@ export function Signals() {
 
   return (
     <section id="signals" className="doc-sec" data-shot="5">
-      <SectionHead no="Ⅴ" title="시장 대비 여유" lede={`청라 기준으로 다섯 신호를 읽습니다. 각 신호의 비교 기준과 그 기준을 고른 이유를 함께 적습니다. 조회일 ${date}.`} />
+      <SectionHead no="07" group="시장분석" title="시장 대비 여유" lede={`청라 기준으로 다섯 신호를 읽습니다. 각 신호의 비교 기준과 그 기준을 고른 이유를 함께 적습니다. 조회일 ${date}.`} />
       <ol className="signals">
         {s.map((x) => (
           <li key={x.name} className={x.good === null ? "wait" : x.good ? "ok" : "bad"}>
@@ -446,7 +448,7 @@ export function Verify() {
 
   return (
     <section id="verify" className="doc-sec" data-shot="5">
-      <SectionHead no="Ⅶ" title="검증 로그와 보안 점검" lede="1회차 검증 3종은 페이지가 열릴 때마다 같은 계산 엔진으로 다시 계산됩니다. npm test에도 같은 단언이 들어 있습니다." />
+      <SectionHead no="09" group="검토의견" title="검증 로그와 보안 점검" lede="1회차 검증 3종은 페이지가 열릴 때마다 같은 계산 엔진으로 다시 계산됩니다. npm test에도 같은 단언이 들어 있습니다." />
       <ol className="checks">
         <li className="pass">
           <h4>표본 3셀 대조 — 세대당 분양가 = 공급면적 × 평당가 ÷ 100</h4>

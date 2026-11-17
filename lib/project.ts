@@ -23,8 +23,8 @@ export const UNIT_TYPES: UnitType[] = [
 export const COMMERCIAL = { supplyPy: 620.0, units: 18, hopePerPy: 1650 };
 
 export const PROJECT = {
-  name: "청라 레이크포레",
-  fullName: "청라 레이크포레 공동주택 신축사업",
+  name: "청라 레이크 포레",
+  fullName: "청라 레이크 포레 공동주택 신축사업",
   developer: "(주)청라레이크포레개발",
   contractor: "(주)대주건설",
   location: "인천광역시 서해구 청라동 000-0번지 일원",

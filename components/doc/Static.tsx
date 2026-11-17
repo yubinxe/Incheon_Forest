@@ -43,7 +43,7 @@ export function Overview() {
   ];
   return (
     <section id="overview" className="doc-sec" data-shot="5">
-      <SectionHead no="Ⅰ" title="사업 개요" lede="기준일 2026-09-30. 사업장·법인·재무는 전부 교육용 합성 자료이며, 시장 자료만 공공데이터포털의 실제 공개자료입니다." />
+      <SectionHead no="01" group="사업안내" title="사업개요" lede="기준일 2026-09-30. 사업장·법인·재무는 전부 교육용 합성 자료이며, 시장 자료만 공공데이터포털의 실제 공개자료입니다." />
       <div className="grid-2">
         <dl className="facts">
           {facts.map(([k, v]) => (
@@ -138,7 +138,8 @@ export function Inputs() {
   return (
     <section id="inputs" className="doc-sec" data-shot="5">
       <SectionHead
-        no="Ⅱ"
+        no="04"
+        group="사업수지"
         title="입력값 산출"
         lede="02 소요자금의 공란 4개를 산정근거의 요율로 채우고, 모든 항목을 고정비 · 변동비 · 상쇄 항목으로 나눕니다. 이 표가 틀리면 이후의 모든 숫자가 틀립니다."
       />
@@ -250,7 +251,7 @@ export function Opinion() {
 
   return (
     <section id="opinion" className="doc-sec" data-shot="5">
-      <SectionHead no="Ⅵ" title="의견" lede="리스크마다 근거 숫자 · 현실화 조건 · 완화 방안을 붙였습니다. 확약이 있다는 것과 이행할 능력이 있다는 것은 다른 문제입니다." />
+      <SectionHead no="08" group="검토의견" title="리스크와 의견" lede="리스크마다 근거 숫자 · 현실화 조건 · 완화 방안을 붙였습니다. 확약이 있다는 것과 이행할 능력이 있다는 것은 다른 문제입니다." />
 
       <ol className="risks">
         <li>
