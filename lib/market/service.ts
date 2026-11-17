@@ -40,7 +40,11 @@ async function getText(url: string, source: string): Promise<string> {
     headers: { Accept: "application/json, application/xml;q=0.9" },
   });
   const body = await res.text();
-  if (!res.ok) throw new SourceError(source, `HTTP ${res.status}`);
+  if (!res.ok) {
+    // 게이트웨이 사유(미승인·키 오류 등)를 함께 남긴다 — 응답 본문에는 키가 없다
+    const hint = body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+    throw new SourceError(source, `HTTP ${res.status}${hint ? ` — ${hint}` : ""}`);
+  }
   return body;
 }
 
@@ -104,6 +108,24 @@ export async function resolveRegion(key: string, input: string) {
     codes: [...codes.values()],
     sggKeywords: [...sggKeywords],
     warnings,
+  };
+}
+
+/** 법정동코드 API 장애 시 대체 — 개편 전 인천 서구(28260) 코드만 확정값으로 둔다 */
+function staticRegion(input: string) {
+  const dong = input.split(" ").reverse().find((t) => /동$/.test(t)) ?? input;
+  const table: Record<string, { sgg: string; label: string }> = {
+    청라동: { sgg: "28260", label: "인천광역시 서구 (개편 전 코드)" },
+  };
+  const hit = table[dong];
+  if (!hit) return null;
+  return {
+    query: dong,
+    dong,
+    matched: [] as { code: string; name: string }[],
+    codes: [{ code: hit.sgg, label: hit.label, source: "legacy" as const }],
+    sggKeywords: ["서구", "서해구"],
+    warnings: [] as string[],
   };
 }
 
@@ -185,7 +207,12 @@ export async function buildMarket(region: string) {
     reg = await resolveRegion(key, region);
     log("법정동코드", reg.matched.length);
   } catch (e) {
-    return { status: "error" as const, fetchedAt, region, message: `법정동코드 확인 실패: ${(e as Error).message}` };
+    // 법정동코드 API가 막혀도 실거래·청약홈 분석은 계속한다 — 검증된 정적 코드로 대체하고 화면에 경고
+    const msg = (e as Error).message;
+    log("법정동코드", 0, msg);
+    const fb = staticRegion(region);
+    if (!fb) return { status: "error" as const, fetchedAt, region, message: `법정동코드 확인 실패: ${msg}` };
+    reg = { ...fb, warnings: [`법정동코드 API 실패(${msg}) — 정적 코드표로 대체. 2026-07 개편 후 신규 서해구 코드는 미확인`, ...fb.warnings] };
   }
   if (!reg.codes.length) {
     return { status: "error" as const, fetchedAt, region, message: `‘${region}’에 해당하는 시군구코드를 찾지 못했습니다.`, regionInfo: reg };
