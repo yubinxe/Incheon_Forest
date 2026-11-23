@@ -28,6 +28,7 @@ type Facade = {
   day: THREE.CanvasTexture;
   rm: THREE.CanvasTexture; // G = roughness, B = metalness
   glow: THREE.CanvasTexture;
+  seedTex: THREE.CanvasTexture; // R = 점등 임계값 — 셰이더가 uLit 와 비교
   canvas: HTMLCanvasElement;
   seeds: Float32Array;
   hues: Uint8Array;
@@ -113,26 +114,57 @@ function paintFacade(cols: number, floors: number, seed: number) {
 
 const WARM = ["#ffd9a6", "#ffcf8f", "#ffe4bd", "#ffc27a", "#f6e9d2", "#dfe8f5"];
 
-function paintGlow(f: Facade, lit: number) {
+/**
+ * 점등 맵 — 모든 창의 색을 한 번만 그리고, 창마다 점등 임계값을 별도 텍스처에 기록한다.
+ * 분양률이 바뀌어도 텍스처를 다시 그리거나 업로드하지 않고 셰이더 유니폼 하나만 바꾼다 (스크롤 끊김 방지).
+ */
+function paintGlow(f: Facade, seedCanvas: HTMLCanvasElement) {
   const g = f.canvas.getContext("2d")!;
+  const sg = seedCanvas.getContext("2d")!;
   g.fillStyle = "#000";
   g.fillRect(0, 0, f.canvas.width, f.canvas.height);
-  // 필로티 로비 조명 — 항상 켜짐(밤에만 보임)
+  sg.fillStyle = "#fff";
+  sg.fillRect(0, 0, seedCanvas.width, seedCanvas.height);
+  // 필로티 로비 조명 — 임계값 0(항상 켜짐, 밤에만 보임)
   g.fillStyle = "#c79a5c";
   g.fillRect(0, f.canvas.height - WIN_H + 6, f.canvas.width, WIN_H - 8);
+  sg.fillStyle = "#000";
+  sg.fillRect(0, f.canvas.height - WIN_H + 6, f.canvas.width, WIN_H - 8);
   for (let fl = 0; fl < f.floors - 1; fl++) {
     const y = TOP + fl * WIN_H;
     for (let i = 0; i < f.cols; i++) {
       if (i % COLS_PER_UNIT === 0) continue;
       const k = fl * f.cols + i;
-      if (f.seeds[k] >= lit) continue;
       g.fillStyle = WARM[f.hues[k] % WARM.length];
       g.globalAlpha = 0.7 + ((f.seeds[k] * 7919) % 1) * 0.3;
       g.fillRect(i * WIN_W + 2, y + 3, WIN_W - 4, WIN_H - 6);
+      const v = Math.max(2, Math.min(253, Math.round(f.seeds[k] * 255)));
+      sg.fillStyle = `rgb(${v},${v},${v})`;
+      sg.fillRect(i * WIN_W, y, WIN_W, WIN_H);
     }
   }
   g.globalAlpha = 1;
-  f.glow.needsUpdate = true;
+}
+
+/** 공유 점등 유니폼 — 모든 입면 재질이 같은 값을 읽는다 */
+export const LIT = { value: 0 };
+
+function addLitThreshold(mat: THREE.MeshStandardMaterial, seedTex: THREE.Texture) {
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uLit = LIT;
+    shader.uniforms.uSeedMap = { value: seedTex };
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform float uLit;\nuniform sampler2D uSeedMap;")
+      .replace(
+        "#include <emissivemap_fragment>",
+        `#ifdef USE_EMISSIVEMAP
+          vec4 emissiveColor = texture2D( emissiveMap, vEmissiveMapUv );
+          float seedV = texture2D( uSeedMap, vEmissiveMapUv ).r;
+          totalEmissiveRadiance *= emissiveColor.rgb * step( seedV, uLit + 0.002 );
+        #endif`,
+      );
+  };
+  mat.customProgramCacheKey = () => "lit-threshold";
 }
 
 function makeFacade(width: number, floors: number, seed: number): Facade {
@@ -165,8 +197,14 @@ function makeFacade(width: number, floors: number, seed: number): Facade {
   rm.anisotropy = 8;
   const glow = new THREE.CanvasTexture(glowCanvas);
   glow.colorSpace = THREE.SRGBColorSpace;
-  const f: Facade = { day, rm, glow, canvas: glowCanvas, seeds, hues, cols, floors };
-  paintGlow(f, 0);
+  const seedCanvas = document.createElement("canvas");
+  seedCanvas.width = dayCanvas.width;
+  seedCanvas.height = dayCanvas.height;
+  const seedTex = new THREE.CanvasTexture(seedCanvas);
+  seedTex.magFilter = seedTex.minFilter = THREE.NearestFilter;
+  seedTex.generateMipmaps = false;
+  const f: Facade = { day, rm, glow, seedTex, canvas: glowCanvas, seeds, hues, cols, floors };
+  paintGlow(f, seedCanvas);
   return f;
 }
 
@@ -269,6 +307,7 @@ export function buildComplex(): Complex {
         emissive: new THREE.Color("#ffffff"),
         emissiveIntensity: 0,
       });
+      addLitThreshold(m, f.seedTex);
       materials.push(m);
       return m;
     };
@@ -374,16 +413,12 @@ export function buildComplex(): Complex {
   pond.position.set(0, 1.5, 4);
   group.add(pond);
 
-  let lastLit = -1;
   return {
     group,
     materials,
     glassMats: [...materials, glassCore, railMat],
     setLit(lit: number) {
-      const q = Math.round(lit * 100) / 100;
-      if (q === lastLit) return;
-      lastLit = q;
-      facades.forEach((f) => paintGlow(f, q));
+      LIT.value = lit;
     },
   };
 }

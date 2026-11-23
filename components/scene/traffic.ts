@@ -75,7 +75,7 @@ export function buildTraffic(roads: Road[], max: number) {
     m.frustumCulled = false;
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   }
-  bodies.castShadow = true;
+  bodies.castShadow = false; // 그림자 맵을 매 프레임 다시 그리지 않도록 차량은 그림자 제외
 
   const group = new THREE.Group();
   group.add(bodies, glass, heads, tails);

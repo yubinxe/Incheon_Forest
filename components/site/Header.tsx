@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NAV, OWNER } from "./nav";
 
 /**
@@ -11,7 +11,7 @@ export default function Header({ baseDate }: { baseDate: string }) {
   const [mode, setMode] = useState<"clear" | "dark" | "light">("clear");
   const [active, setActive] = useState("");
   const [open, setOpen] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const barRef = useRef<HTMLDivElement>(null); // 진행 바는 상태 대신 DOM 직접 갱신 — 스크롤마다 리렌더 방지
 
   useEffect(() => {
     let raf = 0;
@@ -26,7 +26,7 @@ export default function Header({ baseDate }: { baseDate: string }) {
       });
       setMode(overPaper ? "light" : y > innerHeight * 0.5 ? "dark" : "clear");
       const max = document.documentElement.scrollHeight - innerHeight;
-      setProgress(max > 0 ? Math.min(1, y / max) : 0);
+      if (barRef.current) barRef.current.style.transform = `scaleX(${max > 0 ? Math.min(1, y / max) : 0})`;
       let cur = "";
       let best = -Infinity;
       for (const id of ids) {
@@ -111,7 +111,7 @@ export default function Header({ baseDate }: { baseDate: string }) {
           </button>
         </div>
       </div>
-      <div className="gnb-progress" style={{ transform: `scaleX(${progress})` }} aria-hidden="true" />
+      <div className="gnb-progress" ref={barRef} aria-hidden="true" />
 
       {/* 모바일 전체 메뉴 */}
       <div className="gnb-sheet" hidden={!open}>

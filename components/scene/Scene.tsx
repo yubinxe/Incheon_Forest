@@ -108,6 +108,8 @@ export default function Scene() {
     renderer.toneMappingExposure = 0.7;
     renderer.shadowMap.enabled = Q.shadow > 0;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -217,7 +219,15 @@ export default function Scene() {
     water.rotation.x = -Math.PI / 2;
     water.position.set(LAKE_CENTER.x, 0.4, LAKE_CENTER.z);
     (water.material as THREE.ShaderMaterial).uniforms.size.value = 3;
-    if (Q.waterRes > 0) scene.add(water);
+    if (Q.waterRes > 0) {
+      // 수면 반사(장면 재렌더)는 격 프레임마다 — 반사는 30Hz면 충분
+      const wr = water.onBeforeRender.bind(water);
+      let wf = 0;
+      water.onBeforeRender = (...args: Parameters<typeof wr>) => {
+        if (wf++ % 2 === 0) wr(...args);
+      };
+      scene.add(water);
+    }
 
     /* 후처리 — 야간 창·가로등 번짐 */
     // MSAA 렌더 타깃 — 후처리를 거쳐도 가장자리 계단 현상이 없도록
@@ -232,6 +242,10 @@ export default function Scene() {
     gtao.updateGtaoMaterial({ radius: 7, distanceExponent: 1.6, thickness: 6, scale: 1.25, samples: 12, distanceFallOff: 1 });
     gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: 12 });
     gtao.blendIntensity = 0.85;
+    // AO는 절반 해상도로 계산 — 비용 1/4, 디노이즈로 품질 차이 거의 없음
+    const gtaoSetSize = gtao.setSize.bind(gtao);
+    gtao.setSize = (w: number, h: number) => gtaoSetSize(Math.max(1, Math.round(w / 2)), Math.max(1, Math.round(h / 2)));
+    gtao.setSize(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio());
     // AO 깊이·법선 패스에서 하늘 · 구름 · 구름 그림자를 빼야 하늘이 어두워지지 않는다
     const gtaoRender = gtao.render.bind(gtao);
     gtao.render = (...args: Parameters<typeof gtao.render>) => {
@@ -276,29 +290,45 @@ export default function Scene() {
     const onLit = (e: Event) => (liveLit = (e as CustomEvent<number>).detail);
     window.addEventListener("lf:lit", onLit);
 
-    let sections: HTMLElement[] = [];
-    let seeThrough: HTMLElement[] = [];
+    // 섹션 위치는 캐시해 두고 매 프레임엔 scrollY 만 읽는다 (레이아웃 강제 계산 방지 → 스크롤 끊김 제거)
+    let sections: { top: number; shot: number }[] = [];
+    let seeThrough: { top: number; bottom: number }[] = [];
     const collect = () => {
-      sections = Array.from(document.querySelectorAll<HTMLElement>("[data-shot]"));
-      seeThrough = sections.filter((s) => s.dataset.see === "1");
+      const els = Array.from(document.querySelectorAll<HTMLElement>("[data-shot]"));
+      const y0 = scrollY;
+      sections = els.map((e) => ({ top: e.getBoundingClientRect().top + y0, shot: Number(e.dataset.shot) }));
+      seeThrough = els
+        .filter((e) => e.dataset.see === "1")
+        .map((e) => {
+          const r = e.getBoundingClientRect();
+          return { top: r.top + y0, bottom: r.bottom + y0 };
+        });
     };
     collect();
-    const mo = new MutationObserver(collect);
+    let collectT = 0;
+    const scheduleCollect = () => {
+      clearTimeout(collectT);
+      collectT = window.setTimeout(collect, 150);
+    };
+    const mo = new MutationObserver(scheduleCollect);
     mo.observe(document.body, { childList: true, subtree: true });
+    const ro = new ResizeObserver(scheduleCollect);
+    ro.observe(document.body);
 
     const shotAt = () => {
       const mid = innerHeight * 0.5;
+      const sy = scrollY;
       let a = 0;
       let b = 0;
       let t = 0;
       for (let i = 0; i < sections.length; i++) {
-        const top = sections[i].getBoundingClientRect().top;
+        const top = sections[i].top - sy;
         if (top <= mid) {
-          a = Number(sections[i].dataset.shot);
+          a = sections[i].shot;
           const next = sections[i + 1];
           if (next) {
-            const nt = next.getBoundingClientRect().top;
-            b = Number(next.dataset.shot);
+            const nt = next.top - sy;
+            b = next.shot;
             t = Math.min(1, Math.max(0, (mid - top) / Math.max(1, nt - top)));
           } else {
             b = a;
@@ -326,6 +356,8 @@ export default function Scene() {
 
     const clock = new THREE.Clock();
     let flyStart = 0;
+    let prevSun = 999;
+    let shadowTick = 0;
 
     let raf = 0;
     let visible = true;
@@ -338,10 +370,7 @@ export default function Scene() {
       // 불투명 문서가 화면을 모두 덮으면 렌더 생략 (카메라 상태는 계속 갱신)
       const covered =
         seeThrough.length > 0 &&
-        !seeThrough.some((s) => {
-          const r = s.getBoundingClientRect();
-          return r.bottom > 0 && r.top < innerHeight;
-        });
+        !seeThrough.some((s) => s.bottom - scrollY > 0 && s.top - scrollY < innerHeight);
       const { a, b, t } = shotAt();
       const A = SHOTS[a] ?? SHOTS[0];
       const B = SHOTS[b] ?? A;
@@ -400,7 +429,12 @@ export default function Scene() {
       moon.intensity = 0.45 * cur.night;
       (water.material as THREE.ShaderMaterial).uniforms.sunDirection.value.copy(sunVec).normalize();
       (water.material as THREE.ShaderMaterial).uniforms.time.value = elapsed * 0.35;
-      updateEnv(cur.sun);
+      // 환경맵 재생성(PMREM)은 무거우므로 태양 고도가 멈췄을 때만 갱신
+      if (Math.abs(cur.sun - prevSun) < 0.03) updateEnv(cur.sun);
+      // 그림자 맵은 태양이 움직일 때 · 0.5초마다만 다시 그린다
+      shadowTick++;
+      if (Math.abs(cur.sun - prevSun) > 0.002 || shadowTick % 30 === 0) renderer.shadowMap.needsUpdate = true;
+      prevSun = cur.sun;
       scene.environmentIntensity = 0.25 + 0.75 * above;
 
       fogCol.copy(fogDay).lerp(fogDusk, 1 - dayK).lerp(fogNight, cur.night);
@@ -430,15 +464,18 @@ export default function Scene() {
 
       composer.render();
     };
-    frame();
-    requestAnimationFrame(() => host.classList.add("is-ready"));
+    // 셰이더를 미리 컴파일해 첫 스크롤에서 멈칫하지 않게 한 뒤 화면에 올린다
+    const start = () => {
+      frame();
+      requestAnimationFrame(() => host.classList.add("is-ready"));
+    };
+    (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve()).then(start, start);
 
     const onResize = () => {
       camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(innerWidth, innerHeight);
       composer.setSize(innerWidth, innerHeight);
-      gtao.setSize(innerWidth, innerHeight);
       cine.uniforms.uRes.value.set(innerWidth, innerHeight);
     };
     addEventListener("resize", onResize);
@@ -449,6 +486,8 @@ export default function Scene() {
       window.removeEventListener("lf:lit", onLit);
       document.removeEventListener("visibilitychange", onVis);
       mo.disconnect();
+      ro.disconnect();
+      clearTimeout(collectT);
       disposed = true;
       envRT?.dispose();
       glassEnvRT?.dispose();
