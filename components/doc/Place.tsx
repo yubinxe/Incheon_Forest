@@ -2,6 +2,7 @@ import { COMMERCIAL, PROJECT, UNIT_TYPES } from "@/lib/project";
 import { TOWERS, FLOOR_H, PILOTI_H } from "@/components/scene/towers";
 import { m } from "@/lib/format";
 import { SectionHead } from "./Heads";
+import { LocationMap } from "./LocationMap";
 
 /* ───────── 02 입지환경 ───────── */
 
@@ -25,7 +26,8 @@ export function Location() {
         lede="호수공원 북측 첫 열. 공항철도와 공항고속도로로 서울·공항 양방향 접근이 가능한 청라국제도시 생활권입니다."
       />
       <div className="loc">
-        <figure className="loc-map" aria-label="입지 개념도">
+        <LocationMap
+          diagram={
           <svg viewBox="0 0 640 420" role="img">
             <title>청라 레이크 포레 입지 개념도</title>
             <rect width="640" height="420" fill="#eef0ea" />
@@ -55,8 +57,8 @@ export function Location() {
             <rect x="268" y="150" width="124" height="52" className="m-site" />
             <text x="330" y="182" textAnchor="middle" className="m-site-lbl">사업지</text>
           </svg>
-          <figcaption>개념도 — 축척과 위치는 실제와 다릅니다. 실제 배치·거리는 인허가 도서로 확인합니다.</figcaption>
-        </figure>
+          }
+        />
 
         <table className="tbl loc-tbl">
           <thead>

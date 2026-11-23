@@ -15,9 +15,16 @@ function files(dir: string): string[] {
 
 describe("보안 점검", () => {
   const all = files(ROOT);
-  it("NEXT_PUBLIC_ 환경변수 미사용", () => {
-    const use = /process\.env\.NEXT_PUBLIC_|^\s*NEXT_PUBLIC_[A-Z0-9_]*\s*=/m;
+  it("NEXT_PUBLIC_ 환경변수는 카카오 지도 JS 키 1종만 (도메인 제한형 브라우저 키)", () => {
+    const use = /process\.env\.NEXT_PUBLIC_(?!KAKAO_MAP_JS_KEY\b)|^\s*NEXT_PUBLIC_(?!KAKAO_MAP_JS_KEY\b)[A-Z0-9_]*\s*=/m;
     const hits = [...all, join(ROOT, ".env.example")].filter((f) => existsSync(f) && use.test(readFileSync(f, "utf8")));
+    expect(hits).toEqual([]);
+    const kakao = all.filter((f) => /process\.env\.NEXT_PUBLIC_KAKAO_MAP_JS_KEY/.test(readFileSync(f, "utf8")));
+    expect(kakao.map((f) => f.slice(ROOT.length + 1))).toEqual(["lib/kakao.ts"]);
+  });
+  it("공공데이터 키가 NEXT_PUBLIC_ 으로 새지 않음", () => {
+    const leak = /NEXT_PUBLIC_[A-Z0-9_]*(DATA_GO|SERVICE_KEY|PUBLIC_DATA)/;
+    const hits = [...all, join(ROOT, ".env.example")].filter((f) => existsSync(f) && leak.test(readFileSync(f, "utf8")));
     expect(hits).toEqual([]);
   });
   it("인증키 하드코딩 패턴 0건 (serviceKey=리터럴, 64자 hex/base64형 키)", () => {
