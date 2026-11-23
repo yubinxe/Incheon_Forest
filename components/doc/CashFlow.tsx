@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { usePlan } from "@/components/plan/PlanProvider";
 import { cashflow } from "@/lib/finance";
 import { eok, m, pct } from "@/lib/format";
+import { U } from "./U";
 
 const W = 960;
 const H = 340;
@@ -87,16 +88,16 @@ export function CashFlow() {
         {h && (
           <div className="cf-tip" style={{ left: `${(x(hover!) / W) * 100}%` }}>
             <b>{h.q}</b>
-            <span>유입 {m(h.inflow)}</span>
-            <span>유출 {m(h.outflow)}</span>
-            <span>순현금 {m(h.net)}</span>
-            <span>누적 {m(h.cum)}</span>
-            <span>차입 한도 {m(h.capacity)}</span>
+            <span>유입 {eok(h.inflow)}</span>
+            <span>유출 {eok(h.outflow)}</span>
+            <span>순현금 {eok(h.net)}</span>
+            <span>누적 {eok(h.cum)}</span>
+            <span>차입 한도 {eok(h.capacity)}</span>
           </div>
         )}
       </div>
       <p className="note">
-        가정 — 사업계획서 일정 기준: 토지비 2026.Q2 10%·Q3 90%, 기성 1,470억은 2027.Q1~2029.Q4 S커브, 유보금 420억·시행사 대여금은 2030.Q1(후순위),
+        가정 — 사업계획서 일정 기준: 토지비 2026.Q2 10%·Q3 90%, 기성 1,470억원은 2027.Q1~2029.Q4 S커브, 유보금 420억원·시행사 대여금은 2030.Q1(후순위),
         분양대금은 계약금 10%(2027.Q2)·중도금 6회 60%(2027.Q4~2028.Q4)·잔금 30%(2029.Q4), 중도금 이자는 시행사가 선지급 후 입주 시 회수.
         차입 원금은 제외했으므로 누적선의 최저점이 차입으로 메워야 할 최대 부족액입니다. 분양률은 계약 시점에 확정된다고 보았습니다(단순화).
       </p>
@@ -107,7 +108,7 @@ export function CashFlow() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.q} className={r.cum < -r.capacity ? "computed" : undefined}>
-                <td className="mono">{r.q}</td><td className="num">{m(r.inflow)}</td><td className="num">{m(r.outflow)}</td><td className="num">{m(r.net)}</td><td className="num">{m(r.cum)}</td><td className="num">{m(r.capacity)}</td>
+                <td className="mono">{r.q}</td><td className="num">{m(r.inflow)}<U>백만원</U></td><td className="num">{m(r.outflow)}<U>백만원</U></td><td className="num">{m(r.net)}<U>백만원</U></td><td className="num">{m(r.cum)}<U>백만원</U></td><td className="num">{m(r.capacity)}<U>백만원</U></td>
               </tr>
             ))}
           </tbody>

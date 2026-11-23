@@ -11,7 +11,8 @@ import {
   PF_LIMIT_TARGET,
 } from "@/lib/finance";
 import { CONTRACT, CONTRACTOR_FIN as F, LOANS, PROJECT, RATES, UNIT_TYPES, COMMERCIAL } from "@/lib/project";
-import { eok, m, pct } from "@/lib/format";
+import { eok, m, mw, pct } from "@/lib/format";
+import { U } from "./U";
 import { SectionHead } from "./Heads";
 import { ContractorLiquidity, PmDecision } from "./Present";
 export { SectionHead };
@@ -73,7 +74,7 @@ export function Overview() {
               {LOANS.map((l) => (
                 <tr key={l.name}>
                   <td>{l.name}<span className="sub">{l.note}</span></td>
-                  <td className="num">{m(l.limit)}</td>
+                  <td className="num">{m(l.limit)}<U>백만원</U></td>
                   <td className="num">{l.rate.toFixed(1)}%</td>
                   <td>{l.term}</td>
                 </tr>
@@ -98,23 +99,23 @@ export function Overview() {
               <td className="num">{t.exclusiveM2.toFixed(2)}</td>
               <td className="num">{t.supplyPy.toFixed(1)}</td>
               <td className="num">{t.units}</td>
-              <td className="num">{m(t.hopePerPy)}</td>
-              <td className="num">{m(t.hopePerExclusivePy)}</td>
-              <td className="num">{m((t.supplyPy * t.hopePerPy) / 100, 2)}</td>
-              <td className="num">{m((t.supplyPy * t.hopePerPy * t.units) / 100, 2)}</td>
+              <td className="num">{m(t.hopePerPy)}<U>만원</U></td>
+              <td className="num">{m(t.hopePerExclusivePy)}<U>만원</U></td>
+              <td className="num">{m((t.supplyPy * t.hopePerPy) / 100, 2)}<U>백만원</U></td>
+              <td className="num">{m((t.supplyPy * t.hopePerPy * t.units) / 100, 2)}<U>백만원</U></td>
             </tr>
           ))}
           <tr className="sum">
-            <td>아파트 계</td><td /><td className="num">{m(TOTAL_SUPPLY_PY, 1)}</td><td className="num">612</td>
-            <td className="num">{m(HOPE_AVG_PER_PY, 1)}<span className="sub">가중평균</span></td><td /><td /><td className="num">{m(HOPE_APT_REVENUE, 2)}</td>
+            <td>아파트 계</td><td /><td className="num">{m(TOTAL_SUPPLY_PY, 1)}<U>평</U></td><td className="num">612</td>
+            <td className="num">{m(HOPE_AVG_PER_PY, 1)}<U>만원</U><span className="sub">가중평균</span></td><td /><td /><td className="num">{m(HOPE_APT_REVENUE, 2)}<U>백만원</U></td>
           </tr>
           <tr>
-            <td>근린생활시설</td><td /><td className="num">{m(COMMERCIAL.supplyPy, 1)}</td><td className="num">{COMMERCIAL.units}호</td>
-            <td className="num">{m(COMMERCIAL.hopePerPy)}</td><td /><td /><td className="num">{m(HOPE_COMMERCIAL_REVENUE, 2)}</td>
+            <td>근린생활시설</td><td /><td className="num">{m(COMMERCIAL.supplyPy, 1)}<U>평</U></td><td className="num">{COMMERCIAL.units}호</td>
+            <td className="num">{m(COMMERCIAL.hopePerPy)}<U>만원</U></td><td /><td /><td className="num">{m(HOPE_COMMERCIAL_REVENUE, 2)}<U>백만원</U></td>
           </tr>
           <tr className="sum strong">
             <td colSpan={7}>총 분양수입 (희망가 · 100%)</td>
-            <td className="num">{m(HOPE_APT_REVENUE + HOPE_COMMERCIAL_REVENUE, 2)}</td>
+            <td className="num">{m(HOPE_APT_REVENUE + HOPE_COMMERCIAL_REVENUE, 2)}<U>백만원</U></td>
           </tr>
         </tbody>
       </table>
@@ -128,10 +129,10 @@ export function Overview() {
 export function Inputs() {
   const b = fillBlanks();
   const formulas: Record<string, string> = {
-    학교용지부담금: `${m(HOPE_APT_REVENUE, 2)} × 0.8%`,
+    학교용지부담금: `${mw(HOPE_APT_REVENUE, 2)} × 0.8%`,
     "분양대행수수료(아파트)": `3백만원 × 612세대`,
-    사업예비비: `189,000 × 3%`,
-    중도금이자후불제: `${m(HOPE_APT_REVENUE, 2)} × 60% × 5.2% × 18/12`,
+    사업예비비: `189,000백만원 × 3%`,
+    중도금이자후불제: `${mw(HOPE_APT_REVENUE, 2)} × 60% × 5.2% × 18/12`,
   };
   const groups = [...new Set(INPUTS.items.map((i) => i.group))];
   const comm = HOPE_COMMERCIAL_REVENUE;
@@ -155,7 +156,7 @@ export function Inputs() {
           <div className="blank" key={name as string}>
             <span className="b-kind">{k as string}</span>
             <span className="b-name">{name as string}</span>
-            <span className="b-val">{m(v as number, 2)}</span>
+            <span className="b-val">{m(v as number, 2)}<U>백만원</U></span>
             <span className="b-f">{f as string}</span>
           </div>
         ))}
@@ -163,28 +164,28 @@ export function Inputs() {
 
       <div className="ledger">
         <div className="ledger-row strong">
-          <span>고정비</span><span className="num">{m(INPUTS.fixed, 2)}</span>
-          <span className="ex">소요자금 − 변동비 − 상쇄 항목. 금융비용 {m(INPUTS.financing)} · 사업예비비 {m(b.reserve)} · 시행사 대여금 상환 6,000 포함</span>
+          <span>고정비</span><span className="num">{m(INPUTS.fixed, 2)}<U>백만원</U></span>
+          <span className="ex">소요자금 − 변동비 − 상쇄 항목. 금융비용 {mw(INPUTS.financing)} · 사업예비비 {mw(b.reserve)} · 시행사 대여금 상환 6,000백만원 포함</span>
         </div>
         <div className="ledger-row">
-          <span>변동비 <i>(100% 분양 시)</i></span><span className="num">{m(INPUTS.variable, 2)}</span>
+          <span>변동비 <i>(100% 분양 시)</i></span><span className="num">{m(INPUTS.variable, 2)}<U>백만원</U></span>
           <span className="ex">학교용지부담금 0.8% × 아파트 분양수입 + 분양대행 300만원 × 분양세대 — 분양률에 비례</span>
         </div>
         <div className="ledger-row">
-          <span>상쇄 항목</span><span className="num">{m(INPUTS.offset, 2)}</span>
-          <span className="ex">중도금이자후불제 {m(b.midPaymentInterest, 2)} + 이자상환적립계정 1,872 — 사업계획서 Ⅲ-1: 시행사 선지급 후 입주 시 회수 · 만기 환입이라 유입과 지출에 같은 금액</span>
+          <span>상쇄 항목</span><span className="num">{m(INPUTS.offset, 2)}<U>백만원</U></span>
+          <span className="ex">중도금이자후불제 {mw(b.midPaymentInterest, 2)} + 이자상환적립계정 1,872백만원 — 사업계획서 Ⅲ-1: 시행사 선지급 후 입주 시 회수 · 만기 환입이라 유입과 지출에 같은 금액</span>
         </div>
         <div className="ledger-row strong">
-          <span>총사업비</span><span className="num">{m(INPUTS.totalProjectCost, 2)}</span><span className="ex">고정비 + 변동비</span>
+          <span>총사업비</span><span className="num">{m(INPUTS.totalProjectCost, 2)}<U>백만원</U></span><span className="ex">고정비 + 변동비</span>
         </div>
         <div className="ledger-row strong">
-          <span>총투자비</span><span className="num">{m(INPUTS.totalInvestment, 2)}</span><span className="ex">고정비 + 변동비 + 상쇄 항목 = 소요자금 전 항목 합계와 일치</span>
+          <span>총투자비</span><span className="num">{m(INPUTS.totalInvestment, 2)}<U>백만원</U></span><span className="ex">고정비 + 변동비 + 상쇄 항목 = 소요자금 전 항목 합계와 일치</span>
         </div>
         <div className="ledger-row">
-          <span>기타유입</span><span className="num">{m(INPUTS.otherInflow)}</span><span className="ex">시행사 출자금·대여금 22,000 + 예치금 이자수입 1,450 (사업계획서 Ⅲ-2)</span>
+          <span>기타유입</span><span className="num">{m(INPUTS.otherInflow)}<U>백만원</U></span><span className="ex">시행사 출자금·대여금 22,000백만원 + 예치금 이자수입 1,450백만원 (사업계획서 Ⅲ-2)</span>
         </div>
         <div className="ledger-row">
-          <span>후순위</span><span className="num">{m(INPUTS.subordinated)}</span><span className="ex">도급계약서 제9조 공사비 유보금 42,000 + 시행사 대여금 6,000 — 본PF 원리금 전액 상환 이후 지급</span>
+          <span>후순위</span><span className="num">{m(INPUTS.subordinated)}<U>백만원</U></span><span className="ex">도급계약서 제9조 공사비 유보금 42,000백만원 + 시행사 대여금 6,000백만원 — 본PF 원리금 전액 상환 이후 지급</span>
         </div>
       </div>
 
@@ -199,18 +200,18 @@ export function Inputs() {
               const rows = INPUTS.items.filter((i) => i.group === g);
               const sub = rows.reduce((s, r) => s + r.value, 0);
               return [
-                <tr key={g} className="grp"><td colSpan={2}>{g}</td><td /><td className="num">{m(sub, 2)}</td></tr>,
+                <tr key={g} className="grp"><td colSpan={2}>{g}</td><td /><td className="num">{m(sub, 2)}<U>백만원</U></td></tr>,
                 ...rows.map((r) => (
                   <tr key={r.name} className={r.computed ? "computed" : undefined}>
                     <td>{r.name}</td>
-                    <td className="num">{m(r.value, r.computed ? 2 : 0)}</td>
+                    <td className="num">{m(r.value, r.computed ? 2 : 0)}<U>백만원</U></td>
                     <td><span className={`tag ${r.kind}`}>{kindLabel[r.kind]}</span></td>
                     <td>{r.computed ? formulas[r.name] : r.basis}</td>
                   </tr>
                 )),
               ];
             })}
-            <tr className="sum strong"><td>합계 (총투자비)</td><td className="num">{m(INPUTS.totalInvestment, 2)}</td><td /><td /></tr>
+            <tr className="sum strong"><td>합계 (총투자비)</td><td className="num">{m(INPUTS.totalInvestment, 2)}<U>백만원</U></td><td /><td /></tr>
           </tbody>
         </table>
       </details>
@@ -219,7 +220,7 @@ export function Inputs() {
         <h4>해석상 판단 2건</h4>
         <p>
           <b>학교용지부담금의 부과 기준.</b> 02는 ‘총분양가 × 0.8%’로 적었으나, 「학교용지 확보 등에 관한 특례법」 제5조의2는 공동주택 분양가격의 1천분의 8로 정합니다.
-          근린생활시설 분양가를 기준에서 뺐습니다. 포함할 경우 {m(schoolWithComm, 2)}(+{m(schoolWithComm - b.schoolLevy, 2)})이며, 기말현금이 그만큼 줄어듭니다.
+          근린생활시설 분양가를 기준에서 뺐습니다. 포함할 경우 {mw(schoolWithComm, 2)}(+{mw(schoolWithComm - b.schoolLevy, 2)})이며, 기말현금이 그만큼 줄어듭니다.
         </p>
         <p>
           <b>중도금이자후불제의 기준.</b> 이자후불제는 아파트 수분양자의 중도금 대출에 적용되므로 아파트 분양가 기준으로 계산했습니다. 상쇄 항목이라 어느 쪽을 택해도 기말현금은 변하지 않고, 시행사가 입주 시까지 선부담하는 유동성만 달라집니다.
@@ -275,8 +276,8 @@ export function Opinion() {
           <dl>
             <dt>근거</dt>
             <dd>
-              희망가 기준 본PF 상환 한계 분양률 {pct(bePfr)}, 전액 회수 분양률 {pct(be0r)}. 분양률 70%면 후순위 480억 전액 손실에 더해 본PF {eok(pfShort70)}가 미상환으로 남습니다.
-              미분양담보대출 한도 400억은 이를 메울 수 있지만 연 9.0%·2030-09 만기의 <em>차입</em>이며, 상환재원은 결국 잔여 약 {Math.round(612 * 0.3)}세대 매각대금(희망가 {eok(unsoldValue)})입니다.
+              희망가 기준 본PF 상환 한계 분양률 {pct(bePfr)}, 전액 회수 분양률 {pct(be0r)}. 분양률 70%면 후순위 480억원 전액 손실에 더해 본PF {eok(pfShort70)}이 미상환으로 남습니다.
+              미분양담보대출 한도 400억원은 이를 메울 수 있지만 연 9.0%·2030-09 만기의 <em>차입</em>이며, 상환재원은 결국 잔여 약 {Math.round(612 * 0.3)}세대 매각대금(희망가 {eok(unsoldValue)})입니다.
             </dd>
             <dt>현실화 조건</dt>
             <dd>인근 1·2순위 미달 주택형과 무순위 공고가 이어지고, 입주 시점 전세가가 잔금·중도금 상환액(분양가의 90%)에 크게 못 미칠 때.</dd>
@@ -289,12 +290,12 @@ export function Opinion() {
           <dl>
             <dt>근거</dt>
             <dd>
-              (주)대주건설 {F.years[last]}년 영업손실 {m(F.operatingIncome[last])} · 순손실 {m(F.netIncome[last])}, 부채비율 {F.debtRatio[0]}% → {F.debtRatio[last]}%,
-              순차입금 {m(F.netDebt[last])} 대비 현금성자산 {m(F.cash[last])}. PF 지급보증 {m(F.pfGuarantee)}(자기자본의 {F.pfGuaranteeToEquity}%), 책임준공 확약 {F.completionGuaranteeSites}개 현장, 회사채 {F.rating}.
-              본 현장의 후순위 유보금 42,000은 시공사 현금성자산의 {pct(42000 / F.cash[last])}에 해당합니다.
+              (주)대주건설 {F.years[last]}년 영업손실 {mw(F.operatingIncome[last])} · 순손실 {mw(F.netIncome[last])}, 부채비율 {F.debtRatio[0]}% → {F.debtRatio[last]}%,
+              순차입금 {mw(F.netDebt[last])} 대비 현금성자산 {mw(F.cash[last])}. PF 지급보증 {mw(F.pfGuarantee)}(자기자본의 {F.pfGuaranteeToEquity}%), 책임준공 확약 {F.completionGuaranteeSites}개 현장, 회사채 {F.rating}.
+              본 현장의 후순위 유보금 420억원은 시공사 현금성자산의 {pct(42000 / F.cash[last])}에 해당합니다.
             </dd>
             <dt>현실화 조건</dt>
-            <dd>BBB− 이하 하향, 타 현장 PF 보증 현실화로 유동성이 막히면 기성 지연 → 공정 중단. 도급계약서 제3조로 착공 90일 이후 건설공사비지수 3% 이상 변동 시 공사비 증액 협의가 열려, 사업예비비 5,670(3%)을 초과하는 증액은 고정비를 직접 올립니다.</dd>
+            <dd>BBB− 이하 하향, 타 현장 PF 보증 현실화로 유동성이 막히면 기성 지연 → 공정 중단. 도급계약서 제3조로 착공 90일 이후 건설공사비지수 3% 이상 변동 시 공사비 증액 협의가 열려, 사업예비비 56.7억원(3%)을 초과하는 증액은 고정비를 직접 올립니다.</dd>
             <dt>완화</dt>
             <dd>신탁사 책임준공형 관리형토지신탁 또는 신용등급 A− 이상 연대 책임준공 · 등급 하향을 대체시공사 선정 트리거로 명문화 · 물가변동 조정 상한을 사업예비비 범위로 합의.</dd>
           </dl>
@@ -317,7 +318,7 @@ export function Opinion() {
                 ["순차입금", F.netDebt],
                 ["현금성자산", F.cash],
               ] as [string, number[]][]).map(([k, v]) => (
-                <tr key={k}><td>{k}</td>{v.map((x, i) => <td key={i} className={`num ${x < 0 ? "neg" : ""}`}>{m(x)}</td>)}</tr>
+                <tr key={k}><td>{k}</td>{v.map((x, i) => <td key={i} className={`num ${x < 0 ? "neg" : ""}`}>{m(x)}<U>백만원</U></td>)}</tr>
               ))}
               {([
                 ["부채비율", F.debtRatio],
@@ -330,14 +331,14 @@ export function Opinion() {
           </table>
           <ol className="verdict">
             <li><b>손해배상형 확약에 그친다.</b> 도급계약서 제12조②는 기한 도과 후 6개월 유예, 미이행 시 손해배상입니다. 대주단 대출의 조건부 채무인수로 전환되는 장치가 없어, 시공사가 지급불능이면 배상청구권은 무담보 채권에 불과합니다.</li>
-            <li><b>지체상금은 이자를 덮지만 상한이 있다.</b> 일 {m(dailyPenalty, 1)}(도급액 0.05%)로 본PF 월 이자 약 {m(monthlyInterest, 0)}를 넘어서나, 상한 10%({m(CONTRACT.amount * CONTRACT.delayPenaltyCap)})에 {capDays}일이면 도달합니다.</li>
+            <li><b>지체상금은 이자를 덮지만 상한이 있다.</b> 일 {mw(dailyPenalty, 1)}(도급액 0.05%)로 본PF 월 이자 약 {mw(monthlyInterest, 0)}을 넘어서나, 상한 10%({mw(CONTRACT.amount * CONTRACT.delayPenaltyCap)})에 {capDays}일이면 도달합니다.</li>
             <li><b>도산 시 해지권만 있다.</b> 제12조③은 회생·워크아웃 시 해지와 대체시공을 허용할 뿐, 대체시공 비용 증가분은 시행사 부담입니다.</li>
             <li><b>미분양 매입확약이 없다.</b> 제18조로 분양 리스크는 전부 시행사와 대주단에 남습니다.</li>
-            <li><b>유보금은 양날이다.</b> 42,000 후순위 유보는 시공사를 준공에 묶어 두지만, 제9조④의 ‘부족분 별도 협의’는 분양 부진 시 분쟁과 공정 지연의 동기가 됩니다.</li>
+            <li><b>유보금은 양날이다.</b> 420억원 후순위 유보는 시공사를 준공에 묶어 두지만, 제9조④의 ‘부족분 별도 협의’는 분양 부진 시 분쟁과 공정 지연의 동기가 됩니다.</li>
           </ol>
         </div>
         <p className="conclusion">
-          결론 — 책임준공 확약은 존재하나 이행능력은 3년 연속 약화되었습니다. 23개 현장이 자기자본 {m(F.equity[last])}의 같은 재무를 공유하므로, 본 확약을 독립적 신용보강으로 평가하지 않습니다.
+          결론 — 책임준공 확약은 존재하나 이행능력은 3년 연속 약화되었습니다. 23개 현장이 자기자본 {mw(F.equity[last])}의 같은 재무를 공유하므로, 본 확약을 독립적 신용보강으로 평가하지 않습니다.
         </p>
       </div>
 
@@ -346,7 +347,7 @@ export function Opinion() {
         <ol className="conditions">
           <li><b>분양 가정의 시장 여유.</b> 적용 분양가 기준 본PF 상환 한계 평당가가 <a href="#market">05</a>의 인근 공급평당가보다 15% 이상 낮고, 상환 한계 분양률이 시장 계약환산 분양률보다 10%p 이상 낮을 것.</li>
           <li><b>책임준공 보강.</b> 신탁사 책임준공형 관리형토지신탁 또는 A− 이상 연대 책임준공, 그리고 시공사 등급 BBB− 하향 시 대체시공사 선정 트리거.</li>
-          <li><b>공사비 상한.</b> 도급계약서 제3조 물가변동 조정 누계를 사업예비비 5,670 범위로 제한.</li>
+          <li><b>공사비 상한.</b> 도급계약서 제3조 물가변동 조정 누계를 사업예비비 56.7억원 범위로 제한.</li>
           <li><b>분양 트리거.</b> 분양 개시 후 6개월 계약률이 상환 한계 분양률에 미달하면 할인 · 임대전환을 결정하는 절차와 할인 하한(상환 한계 평당가)을 대주단과 사전 합의.</li>
           <li><b>유동성 장치.</b> 미분양담보대출 실행조건 확정, 이자상환적립계정 3개월분 유지, 중도금 집단대출 협약 선확보.</li>
         </ol>

@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { KAKAO_JS_KEY, loadKakao, type KakaoNS } from "@/lib/kakao";
 
-/** 카카오 장소 검색으로 실제 좌표를 받는다 — 좌표를 손으로 박지 않는다. */
-const POIS: { q: string; label: string; cat: string; prefer?: string }[] = [
-  { q: "청라호수공원", label: "청라호수공원", cat: "공원" },
-  { q: "청라국제도시역", label: "청라국제도시역", cat: "공항철도", prefer: "SW8" },
-  { q: "청라IC", label: "청라IC", cat: "공항고속도로" },
-  { q: "청라 커낼웨이", label: "커낼웨이", cat: "수변상가" },
+/** 좌표는 서버(/api/places, 카카오 REST)에서 먼저 받고, 빠진 것만 브라우저 장소 검색으로 보충한다. */
+const POIS: { key: string; q: string; label: string; cat: string; prefer?: string }[] = [
+  { key: "park", q: "청라호수공원", label: "청라호수공원", cat: "공원" },
+  { key: "station", q: "청라국제도시역", label: "청라국제도시역", cat: "공항철도", prefer: "SW8" },
+  { key: "ic", q: "청라IC", label: "청라IC", cat: "공항고속도로" },
+  { key: "canal", q: "청라 커낼웨이", label: "커낼웨이", cat: "수변상가" },
 ];
 const CENTER = { lat: 37.536, lng: 126.645 }; // 청라국제도시 — 검색 기준점
 /** 사업지는 교육용 가상 사업장. 호수공원 중심점에서 북측으로 약 600m 띄운 개념 위치. */
@@ -56,11 +56,11 @@ export function LocationMap({ diagram }: { diagram: ReactNode }) {
       map.setZoomable(false); // 휠 스크롤이 페이지 스크롤을 가로채지 않게
       map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
 
-      const places = new kakao.maps.services.Places();
+      const places = kakao.maps.services ? new kakao.maps.services.Places() : null;
       const near = { location: new kakao.maps.LatLng(CENTER.lat, CENTER.lng), radius: 8000 };
       const find = (p: (typeof POIS)[number]) =>
         new Promise<{ lat: number; lng: number } | null>((res) =>
-          places.keywordSearch(
+          !places ? res(null) : places.keywordSearch(
             p.q,
             (data: { x: string; y: string; category_group_code?: string }[], st: string) => {
               if (st !== kakao.maps.services.Status.OK || !data.length) return res(null);
@@ -71,7 +71,13 @@ export function LocationMap({ diagram }: { diagram: ReactNode }) {
           ),
         );
 
-      const found = await Promise.all(POIS.map(find));
+      let server: Record<string, { lat: number; lng: number }> = {};
+      try {
+        const r = await fetch("/api/places");
+        const j = (await r.json()) as { pois?: { key: string; lat: number; lng: number }[] };
+        server = Object.fromEntries((j.pois ?? []).map((p) => [p.key, { lat: p.lat, lng: p.lng }]));
+      } catch {}
+      const found = await Promise.all(POIS.map((p) => (server[p.key] ? Promise.resolve(server[p.key]) : find(p))));
       if (dead) return;
       const bounds = new kakao.maps.LatLngBounds();
       const add = (lat: number, lng: number, el: HTMLElement, z: number) => {

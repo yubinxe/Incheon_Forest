@@ -21,7 +21,8 @@ import {
 import { UNIT_TYPES } from "@/lib/project";
 import { RULES } from "@/lib/market/rules";
 import { CashFlow } from "./CashFlow";
-import { eok, m, pct, signed } from "@/lib/format";
+import { eok, m, mw, pct, signed } from "@/lib/format";
+import { U } from "./U";
 import { m2ToPy } from "@/lib/market/util";
 import type { Excluded } from "@/lib/market/analyze";
 
@@ -147,7 +148,7 @@ export function Market() {
                   {market.supply.types.map((t) => (
                     <tr key={t.houseManageNo + t.houseTy}>
                       <td>{t.houseNm}</td><td className="mono">{t.noticeDate}</td><td className="mono">{t.houseTy}</td>
-                      <td className="num">{t.supplyM2.toFixed(2)}</td><td className="num">{m(t.topAmount)}</td><td className="num">{m(t.perSupplyPy)}</td>
+                      <td className="num">{t.supplyM2.toFixed(2)}</td><td className="num">{m(t.topAmount)}<U>만원</U></td><td className="num">{m(t.perSupplyPy)}<U>만원</U></td>
                     </tr>
                   ))}
                 </tbody>
@@ -198,7 +199,7 @@ export function Market() {
       <div className="rules">
         <div>
           <h4>적용 분양가</h4>
-          <p className="formula">min(희망 {m(HOPE_AVG_PER_PY, 1)}, 인근 공급평당 최고금액 중위 × (1 − {pct(RULES.topToAverage, 0)}))</p>
+          <p className="formula">min(희망 {m(HOPE_AVG_PER_PY, 1)}만원, 인근 공급평당 최고금액 중위 × (1 − {pct(RULES.topToAverage, 0)}))</p>
           <ul>{(applied?.priceSteps ?? ["공공데이터 대기"]).map((s) => <li key={s}>{s}</li>)}</ul>
           <p className="applied">{applied?.price ? <>{m(applied.price, 1)}<span>만원/평</span></> : "—"}</p>
         </div>
@@ -262,7 +263,7 @@ export function Calculator() {
         </div>
         {zone === "pf-shortfall" ? (
           <p className="stage-alert" role="alert">
-            <span aria-hidden="true">⚠</span> 본PF(1,300억) 상환 부족 구간 진입 — 연 9.0% 미분양담보대출(한도 400억) 발동 및 시행사 마진 소멸
+            <span aria-hidden="true">⚠</span> 본PF(1,300억원) 상환 부족 구간 진입 — 연 9.0% 미분양담보대출(한도 400억원) 발동 및 시행사 마진 소멸
           </p>
         ) : rate >= 0.9995 ? (
           <p className="stage-insight">
@@ -300,7 +301,7 @@ export function Calculator() {
         </dl>
         {r.unsoldDraw > 0 && (
           <p className="r-loan">
-            미분양담보대출 인출 {eok(r.unsoldDraw)} · 추가 이자 {eok(r.unsoldInterest, 1)} (연 9.0%, 6개월){r.unsoldDraw >= 40000 ? " — 한도 400억 소진" : ""}
+            미분양담보대출 인출 {eok(r.unsoldDraw)} · 추가 이자 {eok(r.unsoldInterest, 1)} (연 9.0%, 6개월){r.unsoldDraw >= 40000 ? " — 한도 400억원 소진" : ""}
           </p>
         )}
       </div>
@@ -352,7 +353,7 @@ export function Thresholds() {
         no="06"
         group="사업수지"
         title="상환 한계선"
-        lede="두 손익분기를 따로 봅니다. 기말현금 0은 후순위까지 모두 갚는 선, 기말현금 −48,000은 후순위를 포기하고 본PF만 전액 갚는 마지막 선입니다."
+        lede="두 손익분기를 따로 봅니다. 기말현금 0은 후순위까지 모두 갚는 선, 기말현금 −48,000백만원(−480억원)은 후순위를 포기하고 본PF만 전액 갚는 마지막 선입니다."
       />
       <table className="tbl">
         <thead>
@@ -365,16 +366,16 @@ export function Thresholds() {
         </tbody>
       </table>
       <p className="note">
-        기말현금 = s × [아파트 분양수입 × (1 − 0.8%) + 근생 분양수입 − 300만원 × 612] + 기타유입 {m(INPUTS.otherInflow)} − 고정비 {m(INPUTS.fixed, 0)}. 상쇄 항목은 유입·지출 양쪽에 같은 금액이라 소거됩니다.
+        기말현금 = s × [아파트 분양수입 × (1 − 0.8%) + 근생 분양수입 − 300만원 × 612] + 기타유입 {mw(INPUTS.otherInflow)} − 고정비 {mw(INPUTS.fixed, 0)}. 상쇄 항목은 유입·지출 양쪽에 같은 금액이라 소거됩니다.
         근린생활시설은 희망가 1,650만원에 고정하고 아파트 평균가만 움직였습니다. 상가 분양률은 계산기에서 고른 값({commRate === null ? "아파트와 동일" : pct(commRate, 0)})을 따릅니다.
-        금융비용은 분양 속도와 무관하게 고정이며, 본PF 미상환분이 생기면 미분양담보대출(한도 400억, 연 9.0%, 6개월) 이자가 추가로 차감되어 손실이 비선형으로 커집니다.
+        금융비용은 분양 속도와 무관하게 고정이며, 본PF 미상환분이 생기면 미분양담보대출(한도 400억원, 연 9.0%, 6개월) 이자가 추가로 차감되어 손실이 비선형으로 커집니다.
       </p>
 
       <h3 className="h3">2축 민감도 — 기말현금 (억원)</h3>
       <div className="legend" role="list">
         <span role="listitem"><i className="g surplus">●</i>0 이상 — 후순위까지 상환</span>
-        <span role="listitem"><i className="g subordinated">◐</i>−480억 ~ 0 — 본PF 상환, 후순위 손실</span>
-        <span role="listitem"><i className="g pf-shortfall">○</i>−480억 미만 — 본PF 미상환</span>
+        <span role="listitem"><i className="g subordinated">◐</i>−480억원 ~ 0 — 본PF 상환, 후순위 손실</span>
+        <span role="listitem"><i className="g pf-shortfall">○</i>−480억원 미만 — 본PF 미상환</span>
       </div>
       <div className="heat-wrap">
         <table className="heat">
@@ -383,7 +384,7 @@ export function Thresholds() {
               <th className="corner">분양률 \ 평당가</th>
               {prices.map((p) => (
                 <th key={p} className={p === Math.round(hope) ? "mark-hope" : ap && p === Math.round(ap) ? "mark-applied" : ""}>
-                  {m(p)}
+                  {m(p)}<U>만원</U>
                   {p === Math.round(hope) && <span>희망</span>}
                   {ap && p === Math.round(ap) && <span>적용</span>}
                 </th>
@@ -402,7 +403,7 @@ export function Thresholds() {
                   return (
                     <td key={j} className={`cell ${z}`} title={`분양률 ${pct(r)} · 평당가 ${m(prices[j])}만원 → 기말현금 ${m(c)}백만원`}>
                       <span className="glyph">{z === "surplus" ? "●" : z === "subordinated" ? "◐" : "○"}</span>
-                      {m(c / 100, 0)}
+                      {m(c / 100, 0)}<U>억원</U>
                     </td>
                   );
                 })}
@@ -534,19 +535,19 @@ export function Verify() {
             <thead><tr><th>타입</th><th className="num">공급평</th><th className="num">평당가</th><th className="num">계산</th><th className="num">원자료 사업계획서 Ⅳ</th></tr></thead>
             <tbody>
               {cells.map((c, i) => (
-                <tr key={c.type}><td>{c.type}</td><td className="num">{c.supplyPy}</td><td className="num">{m(c.perPy)}</td><td className="num">{m(c.perUnit, 2)}</td><td className="num">{[465, 558, 611][i]}</td></tr>
+                <tr key={c.type}><td>{c.type}</td><td className="num">{c.supplyPy}</td><td className="num">{m(c.perPy)}<U>만원</U></td><td className="num">{m(c.perUnit, 2)}<U>백만원</U></td><td className="num">{[465, 558, 611][i]}<U>백만원</U></td></tr>
               ))}
             </tbody>
           </table>
         </li>
         <li className={sumOk ? "pass" : "fail"}>
           <h4>합계 일치 — 총투자비 = 고정비 + 변동비 + 상쇄 항목</h4>
-          <p className="mono">{m(INPUTS.fixed, 2)} + {m(INPUTS.variable, 2)} + {m(INPUTS.offset, 2)} = {m(INPUTS.totalInvestment, 2)} {sumOk ? `= 소요자금 ${INPUTS.items.length}개 항목 합계 ✓` : "✗"}</p>
+          <p className="mono">{m(INPUTS.fixed, 2)} + {m(INPUTS.variable, 2)} + {m(INPUTS.offset, 2)} = {mw(INPUTS.totalInvestment, 2)} {sumOk ? `= 소요자금 ${INPUTS.items.length}개 항목 합계 ✓` : "✗"}</p>
         </li>
         <li className={Math.abs(hand - calc) < 1e-6 ? "pass" : "fail"}>
           <h4>역산 확인 — 희망가 · 분양률 100%</h4>
           <p className="mono">
-            손계산 {m(HOPE_APT_REVENUE + HOPE_COMMERCIAL_REVENUE, 2)} + {m(INPUTS.otherInflow)} − {m(INPUTS.fixed, 2)} − {m(INPUTS.variable, 2)} = {m(hand, 2)} · 계산기 {m(calc, 2)} {Math.abs(hand - calc) < 1e-6 ? "✓" : "✗"}
+            손계산 {m(HOPE_APT_REVENUE + HOPE_COMMERCIAL_REVENUE, 2)} + {m(INPUTS.otherInflow)} − {m(INPUTS.fixed, 2)} − {m(INPUTS.variable, 2)} = {mw(hand, 2)} · 계산기 {mw(calc, 2)} {Math.abs(hand - calc) < 1e-6 ? "✓" : "✗"}
           </p>
         </li>
       </ol>
@@ -575,7 +576,7 @@ export function Verify() {
         </>
       )}
       </details>
-      <p className="note">평균 공급평당가 {m(HOPE_AVG_PER_PY, 2)} = 아파트 분양수입 {m(HOPE_APT_REVENUE, 2)} × 100 ÷ 공급면적 {m(TOTAL_SUPPLY_PY, 1)}평. 전용평 환산은 {m2ToPy(84.91).toFixed(2)}평(84.91㎡) 등 1평 = 3.305785㎡.</p>
+      <p className="note">평균 공급평당가 {m(HOPE_AVG_PER_PY, 2)}만원 = 아파트 분양수입 {mw(HOPE_APT_REVENUE, 2)} × 100 ÷ 공급면적 {m(TOTAL_SUPPLY_PY, 1)}평. 전용평 환산은 {m2ToPy(84.91).toFixed(2)}평(84.91㎡) 등 1평 = 3.305785㎡.</p>
     </section>
   );
 }

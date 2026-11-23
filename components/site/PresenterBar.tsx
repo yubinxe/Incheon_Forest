@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 const STEPS = [
   { key: "1", label: "79.9% 한계선", target: "#thresholds" },
   { key: "2", label: "계산기 시연", target: "#calculator" },
-  { key: "3", label: "시공사 420억", target: "#risk-contractor" },
+  { key: "3", label: "시공사 420억원", target: "#risk-contractor" },
   { key: "4", label: "검증·결론", target: "#verify" },
 ] as const;
 

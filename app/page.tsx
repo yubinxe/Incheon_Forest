@@ -31,7 +31,7 @@ export default function Page() {
     ["대지면적", m(PROJECT.siteM2), "㎡"],
     ["규모", "지하 2층 – 지상 29층", "8개동"],
     ["세대수", m(PROJECT.households), "세대"],
-    ["총 분양수입", eok(revenue, 0), "원"],
+    ["총 분양수입", m(revenue / 100), "억원"],
     ["입주 예정", "2029.11", ""],
   ];
 
@@ -97,9 +97,9 @@ export default function Page() {
         <section className="film film-right" data-shot="2" data-see="1">
           <div className="film-card">
             <p className="film-kicker">희망 분양가 · 분양률 100%</p>
-            <p className="film-big">{eok(revenue, 0)}<small>원</small></p>
+            <p className="film-big">{eok(revenue, 0)}</p>
             <p className="film-text">
-              총 분양수입입니다. 총투자비 <b>{eok(INPUTS.totalInvestment, 0)}원</b>을 쓰고 남는 기말현금은 <b>{eok(cash, 0)}원</b>, 분양수입의 {pct(cash / revenue)}입니다.
+              총 분양수입입니다. 총투자비 <b>{eok(INPUTS.totalInvestment, 0)}</b>을 쓰고 남는 기말현금은 <b>{eok(cash, 0)}</b>, 분양수입의 {pct(cash / revenue)}입니다.
             </p>
           </div>
         </section>
@@ -119,7 +119,7 @@ export default function Page() {
             <p className="film-kicker">상환 한계선</p>
             <p className="film-big">{pct(pfRate)}</p>
             <p className="film-text">
-              창 하나를 한 세대로 봅니다. 본PF {m(130000)}백만원을 전액 갚으려면 희망가 기준으로 이만큼 불이 켜져야 합니다. 이보다 어두우면 대주단이 손실을 봅니다.
+              창 하나를 한 세대로 봅니다. 본PF 1,300억원을 전액 갚으려면 희망가 기준으로 이만큼 불이 켜져야 합니다. 이보다 어두우면 대주단이 손실을 봅니다.
             </p>
           </div>
         </section>
