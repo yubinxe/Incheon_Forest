@@ -14,9 +14,9 @@ export default function QuickMenu() {
 
   return (
     <aside className={`quick${show ? " is-on" : ""}`} aria-label="빠른 이동">
-      <a href="#overview">
-        <b>개요</b>
-        <span>사업개요</span>
+      <a href="#core">
+        <b>분석</b>
+        <span>핵심 분석</span>
       </a>
       <a href="#calculator">
         <b>계산</b>

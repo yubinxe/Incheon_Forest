@@ -2,6 +2,7 @@
 export type NavItem = { label: string; href: string; children?: { label: string; href: string }[] };
 
 export const NAV: NavItem[] = [
+  { label: "핵심 분석", href: "#core" },
   { label: "사업개요", href: "#overview" },
   { label: "입지환경", href: "#location" },
   { label: "단지안내", href: "#siteplan" },

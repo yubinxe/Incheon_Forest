@@ -6,6 +6,7 @@ import Intro from "@/components/site/Intro";
 import SmoothScroll from "@/components/site/SmoothScroll";
 import { PlanProvider } from "@/components/plan/PlanProvider";
 import { Inputs, Opinion, Overview } from "@/components/doc/Static";
+import { Core } from "@/components/doc/Core";
 import { Location, SitePlan } from "@/components/doc/Place";
 import { Calculator, Market, Signals, Thresholds, Verify } from "@/components/doc/Live";
 import {
@@ -60,8 +61,8 @@ export default function Page() {
             </h1>
             <p className="cover-sub">인천광역시 서해구 청라동 · 청라호수공원 북측 · 공동주택 {PROJECT.households}세대</p>
             <div className="cover-cta">
-              <a href="#overview" className="btn btn-primary">사업개요 보기</a>
-              <a href="#calculator" className="btn btn-ghost">분양률 계산기</a>
+              <a href="#core" className="btn btn-primary">핵심 분석 보기</a>
+              <a href="#overview" className="btn btn-ghost">사업개요</a>
             </div>
           </div>
           <dl className="keybar">
@@ -129,6 +130,7 @@ export default function Page() {
             <p className="paper-title">숫자는 소요자금표에서, 가정은 공공데이터에서.</p>
             <p className="paper-sub">단위 — 금액 백만원 · 평당가 만원(공급면적 기준). 시장 자료는 서버가 하루 한 번 새로 받습니다.</p>
           </div>
+          <Core />
           <Overview />
           <Location />
           <SitePlan />
