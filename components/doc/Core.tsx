@@ -5,6 +5,7 @@ import { usePlan } from "@/components/plan/PlanProvider";
 import { HOPE_AVG_PER_PY, PF_LIMIT_TARGET, breakevenRate } from "@/lib/finance";
 import { feasibility, investment, profitability, tornado, type Grade } from "@/lib/analysis";
 import { eok, m, pct, signed } from "@/lib/format";
+import { CapitalStack } from "./CapitalStack";
 
 type Tab = "feas" | "inv" | "prof";
 const GRADE_ICON: Record<Grade, string> = { 양호: "●", 보통: "◐", 취약: "○", 부적합: "✕" };
@@ -74,6 +75,8 @@ export function Core() {
           ))}
         </div>
       </div>
+
+      <CapitalStack />
 
       {/* 탭 — 각 탭이 자기 결론을 미리 보여준다 */}
       <div className="core-tabs" role="tablist" aria-label="핵심 분석">

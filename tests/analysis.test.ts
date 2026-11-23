@@ -27,3 +27,24 @@ describe("핵심 3대 분석", () => {
     expect([...w].sort((a, b) => b - a)).toEqual(w);
   });
 });
+
+describe("상환 워터폴", () => {
+  it("이익 층 = 기말현금 (흑자), 손실 합 = −기말현금 (적자)", async () => {
+    const { waterfall } = await import("@/lib/analysis");
+    const w = waterfall(hope);
+    expect(w.profit).toBeCloseTo(endingCash(hope).cash, 6);
+    expect(w.lenderLoss + w.subLoss).toBe(0);
+    const low = { aptPerPy: HOPE_AVG_PER_PY, salesRate: 0.7 };
+    const wl = waterfall(low);
+    expect(wl.lenderLoss + wl.subLoss).toBeCloseTo(-endingCash(low).cash, 6);
+  });
+  it("손익분기(93.8%)에서 대여금까지 정확히 채우고, 상환 한계(79.9%)에서 Tr-B 꼭대기", async () => {
+    const { waterfall } = await import("@/lib/analysis");
+    const { breakevenRate, PF_LIMIT_TARGET } = await import("@/lib/finance");
+    const z = waterfall({ aptPerPy: HOPE_AVG_PER_PY, salesRate: breakevenRate(HOPE_AVG_PER_PY, 0) });
+    expect(z.subLoss).toBeCloseTo(0, 4);
+    const p = waterfall({ aptPerPy: HOPE_AVG_PER_PY, salesRate: breakevenRate(HOPE_AVG_PER_PY, PF_LIMIT_TARGET) });
+    expect(p.lenderLoss).toBeCloseTo(0, 4);
+    expect(p.subLoss).toBeCloseTo(48000, 4);
+  });
+});
