@@ -34,7 +34,7 @@ export function Core() {
   const tabs: { key: Tab; no: string; title: string; q: string; value: string; sub: string }[] = [
     { key: "feas", no: "01", title: "사업성 검토", q: "추진할 만한 사업인가", value: f.verdict, sub: `손익분기 분양률 ${pct(f.zeroRate)}` },
     { key: "inv", no: "02", title: "투자 분석", q: "투입 자본은 얼마로 돌아오나", value: v.irr === null ? "회수 불가" : `IRR ${pct(v.irr)}`, sub: `수익배수 ${v.multiple.toFixed(2)}배` },
-    { key: "prof", no: "03", title: "수익성 계산", q: "최종적으로 얼마가 남나", value: `${eok(p.profit, 0)}원`, sub: `매출 대비 ${pct(p.margin)}` },
+    { key: "prof", no: "03", title: "수익성 계산", q: "최종적으로 얼마가 남나", value: `${eok(p.profit, 0)}`, sub: `매출 대비 ${pct(p.margin)}` },
   ];
 
   return (
@@ -57,7 +57,7 @@ export function Core() {
             <span className="scn-k">아파트 평균 공급평당가</span>
             <span className="scn-v">{m(price)}<small>만원</small></span>
             <input type="range" min={1200} max={2600} step={1} value={price} onChange={(e) => setPrice(Number(e.target.value))} aria-label="아파트 평균 공급평당가 (만원)" />
-            <span className="scn-scale"><span>1,200</span><span>희망 {m(HOPE_AVG_PER_PY)}</span><span>2,600</span></span>
+            <span className="scn-scale"><span>1,200만원</span><span>희망 {m(HOPE_AVG_PER_PY)}만원</span><span>2,600만원</span></span>
           </label>
           <label className="scn-field">
             <span className="scn-k">분양률</span>
@@ -116,7 +116,7 @@ export function Core() {
       </div>
 
       <p className="note">
-        세전 기준(법인세 미반영). 순이익 = 기말현금 − 시행사 투입 22,000 + 대여금 회수 6,000. 판정 기준은 본 보고서의 내부 가정이며 금융기관·감정평가 기준이 아닙니다. 금액 단위 억원(표의 원자료는 백만원).
+        세전 기준(법인세 미반영). 순이익 = 기말현금 − 시행사 투입 220억원 + 대여금 회수 60억원. 판정 기준은 본 보고서의 내부 가정이며 금융기관·감정평가 기준이 아닙니다. 금액 단위 억원(표의 원자료는 백만원).
       </p>
     </section>
   );
@@ -195,10 +195,10 @@ function Investment({ v }: { v: ReturnType<typeof investment> }) {
   return (
     <div className="inv">
       <dl className="tiles">
-        <div><dt>시행사 투입</dt><dd>{eok(v.equity, 0)}<small>원</small></dd><p>출자금 · 대여금 (2026.Q2)</p></div>
-        <div><dt>회수액</dt><dd>{eok(v.back, 0)}<small>원</small></dd><p>기말현금 + 대여금 회수</p></div>
+        <div><dt>시행사 투입</dt><dd>{eok(v.equity, 0)}</dd><p>출자금 · 대여금 (2026.Q2)</p></div>
+        <div><dt>회수액</dt><dd>{eok(v.back, 0)}</dd><p>기말현금 + 대여금 회수</p></div>
         <div className="em"><dt>연환산 IRR</dt><dd>{v.irr === null ? "—" : pct(v.irr)}</dd><p>{v.period} · {v.years.toFixed(2)}년</p></div>
-        <div><dt>수익배수</dt><dd>{v.multiple.toFixed(2)}<small>배</small></dd><p>순이익 {eok(v.profit, 0)}원 · ROE {pct(v.roe)}</p></div>
+        <div><dt>수익배수</dt><dd>{v.multiple.toFixed(2)}<small>배</small></dd><p>순이익 {eok(v.profit, 0)} · ROE {pct(v.roe)}</p></div>
       </dl>
 
       <div className="inv-grid">
@@ -206,7 +206,7 @@ function Investment({ v }: { v: ReturnType<typeof investment> }) {
           <figcaption>
             <b>차입 전 누적현금</b> — 최저점이 차입으로 메워야 할 최대 자금 부족(Peak Funding)
           </figcaption>
-          <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`최대 자금 부족 ${eok(v.peak, 0)}원 (${v.peakQ}), 본PF 한도 ${eok(v.pf, 0)}원`} onMouseLeave={() => setHover(null)}>
+          <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`최대 자금 부족 ${eok(v.peak, 0)} (${v.peakQ}), 본PF 한도 ${eok(v.pf, 0)}`} onMouseLeave={() => setHover(null)}>
             <line x1={P.l} x2={W - P.r} y1={ys(0)} y2={ys(0)} className="ax0" />
             <line x1={P.l} x2={W - P.r} y1={ys(-v.pf)} y2={ys(-v.pf)} className="pfline" />
             <text x={W - P.r} y={ys(-v.pf) - 6} textAnchor="end" className="lbl">본PF 한도 −{eok(v.pf, 0)}</text>
@@ -223,7 +223,7 @@ function Investment({ v }: { v: ReturnType<typeof investment> }) {
             ))}
           </svg>
           <p className="cf-read" aria-live="polite">
-            <b>{rows[hv].q}</b> 누적 {eok(rows[hv].cum, 0)}원 · 분기 순유입 {signed(rows[hv].net / 100, 0)}억원
+            <b>{rows[hv].q}</b> 누적 {eok(rows[hv].cum, 0)} · 분기 순유입 {signed(rows[hv].net / 100, 0)}억원
             {hv === pi && <em> · 최대 자금 부족 시점</em>}
           </p>
         </figure>
@@ -231,9 +231,9 @@ function Investment({ v }: { v: ReturnType<typeof investment> }) {
         <div className="inv-side">
           <h3 className="h3">자금 구조</h3>
           <dl className="kv">
-            <div><dt>최대 자금 부족</dt><dd>{eok(v.peak, 0)}원 <small>{v.peakQ}</small></dd></div>
-            <div><dt>본PF 한도</dt><dd>{eok(v.pf, 0)}원</dd></div>
-            <div><dt>한도 여유</dt><dd className={v.pfHeadroom < 0 ? "neg" : ""}>{eok(v.pfHeadroom, 0)}원</dd></div>
+            <div><dt>최대 자금 부족</dt><dd>{eok(v.peak, 0)} <small>{v.peakQ}</small></dd></div>
+            <div><dt>본PF 한도</dt><dd>{eok(v.pf, 0)}</dd></div>
+            <div><dt>한도 여유</dt><dd className={v.pfHeadroom < 0 ? "neg" : ""}>{eok(v.pfHeadroom, 0)}</dd></div>
             <div><dt>본PF / 총사업비</dt><dd>{pct(v.ltc)}</dd></div>
             <div><dt>자기자본 / 총사업비</dt><dd>{pct(v.equityRatio)}</dd></div>
           </dl>
@@ -284,10 +284,10 @@ function Profitability({ s }: { s: Parameters<typeof profitability>[0] }) {
   return (
     <div className="prof">
       <dl className="tiles">
-        <div><dt>분양수입</dt><dd>{eok(p.revenue, 0)}<small>원</small></dd><p>아파트 + 근린생활시설</p></div>
-        <div><dt>총사업비</dt><dd>{eok(p.cost, 0)}<small>원</small></dd><p>대여금 상환 · 상쇄 항목 제외</p></div>
-        <div className={`em${p.profit < 0 ? " neg" : ""}`}><dt>시행사 순이익(세전)</dt><dd>{eok(p.profit, 0)}<small>원</small></dd><p>매출 대비 {pct(p.margin)}</p></div>
-        <div><dt>기말현금</dt><dd>{eok(p.endingCash, 0)}<small>원</small></dd><p>사업 종료 시 신탁 잔액</p></div>
+        <div><dt>분양수입</dt><dd>{eok(p.revenue, 0)}</dd><p>아파트 + 근린생활시설</p></div>
+        <div><dt>총사업비</dt><dd>{eok(p.cost, 0)}</dd><p>대여금 상환 · 상쇄 항목 제외</p></div>
+        <div className={`em${p.profit < 0 ? " neg" : ""}`}><dt>시행사 순이익(세전)</dt><dd>{eok(p.profit, 0)}</dd><p>매출 대비 {pct(p.margin)}</p></div>
+        <div><dt>기말현금</dt><dd>{eok(p.endingCash, 0)}</dd><p>사업 종료 시 신탁 잔액</p></div>
       </dl>
 
       <figure className="wf">
@@ -302,7 +302,7 @@ function Profitability({ s }: { s: Parameters<typeof profitability>[0] }) {
               {bars.map((b) => (
                 <tr key={b.key} className={b.kind === "total" ? "sum strong" : undefined}>
                   <td>{b.label}</td>
-                  <td className="num">{b.kind === "out" ? "−" : ""}{m(Math.abs(b.to - b.from) / 100, 1)}</td>
+                  <td className="num">{b.kind === "out" ? "−" : ""}{m(Math.abs(b.to - b.from) / 100, 1)}억원</td>
                   <td className="num">{pct(Math.abs(b.to - b.from) / p.revenue)}</td>
                 </tr>
               ))}
@@ -310,7 +310,7 @@ function Profitability({ s }: { s: Parameters<typeof profitability>[0] }) {
           </table>
         ) : (
           <>
-            <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`분양수입 ${eok(p.revenue, 0)}원에서 비용을 빼면 순이익 ${eok(p.profit, 0)}원`} onMouseLeave={() => setHover(null)}>
+            <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`분양수입 ${eok(p.revenue, 0)}에서 비용을 빼면 순이익 ${eok(p.profit, 0)}`} onMouseLeave={() => setHover(null)}>
               <line x1={P.l} x2={W - P.r} y1={y(0)} y2={y(0)} className="ax0" />
               {bars.map((b, i) => {
                 const cx = P.l + step * (i + 0.5);
@@ -325,7 +325,7 @@ function Profitability({ s }: { s: Parameters<typeof profitability>[0] }) {
                     {next && next.kind !== "total" && <line x1={cx + bw / 2} x2={cx + step - bw / 2} y1={y(b.to)} y2={y(b.to)} className="wf-link" />}
                     {(b.kind !== "out" || Math.abs(b.to - b.from) > max * 0.04) && (
                       <text x={cx} y={top - 7} textAnchor="middle" className="wf-val">
-                        {b.kind === "out" ? "−" : ""}{m(Math.abs(b.to - b.from) / 100, 0)}
+                        {b.kind === "out" ? "−" : ""}{m(Math.abs(b.to - b.from) / 100, 0)}억원
                       </text>
                     )}
                     <text x={cx} y={H - P.b + 20} textAnchor="middle" className={`tick${b.kind === "total" ? " strong" : ""}`}>{b.label}</text>
@@ -358,8 +358,8 @@ function Profitability({ s }: { s: Parameters<typeof profitability>[0] }) {
                 <text x={tP.l - 14} y={yy + 20} textAnchor="end" className="tor-k">{r.label}</text>
                 {a < 0 && <rect x={tx(a)} y={yy + 4} width={tx(0) - tx(a) - 1} height={22} rx={2} className="tor-dn" />}
                 {bb > 0 && <rect x={tx(0) + 1} y={yy + 4} width={tx(bb) - tx(0) - 1} height={22} rx={2} className="tor-up" />}
-                {a < 0 && <text x={tx(a) - 6} y={yy + 19} textAnchor="end" className="tor-v">{signed(a / 100, 0)}</text>}
-                {bb > 0 && <text x={tx(bb) + 6} y={yy + 19} className="tor-v">{signed(bb / 100, 0)}</text>}
+                {a < 0 && <text x={tx(a) - 6} y={yy + 19} textAnchor="end" className="tor-v">{signed(a / 100, 0)}억원</text>}
+                {bb > 0 && <text x={tx(bb) + 6} y={yy + 19} className="tor-v">{signed(bb / 100, 0)}억원</text>}
               </g>
             );
           })}

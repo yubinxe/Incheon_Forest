@@ -35,7 +35,7 @@ export function CapitalStack() {
   const target = useRef<View | null>(null);
   const [gl, setGl] = useState<"pending" | "ok" | "none">("pending");
 
-  // 스케일은 시나리오와 무관하게 고정(희망가 완판 기준 ≒ 3,750억 → 높이 86%) — 움직임이 그대로 보이게
+  // 스케일은 시나리오와 무관하게 고정(희망가 완판 기준 ≒ 3,750억원 → 높이 86%) — 움직임이 그대로 보이게
   const scale = useMemo(() => Math.max(436_000, w.level * 1.04, w.claims * 1.04), [w.level, w.claims]);
   target.current = { tiers: w.tiers, level: w.level, scale };
 
@@ -321,10 +321,10 @@ export function CapitalStack() {
   const reachedTier = w.tiers.find((t) => t.key === w.reached)!;
   const headline =
     w.cash >= 0
-      ? { tone: "good", text: `수위가 시행사 이익까지 찼습니다 — 모든 채권자 전액 상환 후 ${eok(w.profit, 0)}원이 남습니다.` }
+      ? { tone: "good", text: `수위가 시행사 이익까지 찼습니다 — 모든 채권자 전액 상환 후 ${eok(w.profit, 0)}이 남습니다.` }
       : w.lenderLoss <= 0.5
-        ? { tone: "warn", text: `대주단은 전액 상환, 수위가 ${reachedTier.label}에서 멈춥니다 — 후순위 ${eok(w.subLoss, 0)}원 미회수.` }
-        : { tone: "bad", text: `수위가 ${reachedTier.label}에 머뭅니다 — 대주단 ${eok(w.lenderLoss, 0)}원 미상환, 후순위 전액 손실.` };
+        ? { tone: "warn", text: `대주단은 전액 상환, 수위가 ${reachedTier.label}에서 멈춥니다 — 후순위 ${eok(w.subLoss, 0)} 미회수.` }
+        : { tone: "bad", text: `수위가 ${reachedTier.label}에 머뭅니다 — 대주단 ${eok(w.lenderLoss, 0)} 미상환, 후순위 전액 손실.` };
 
   return (
     <figure className="stack" aria-label="상환 워터폴">
@@ -348,7 +348,7 @@ export function CapitalStack() {
           </div>
           <p className="stack-level">
             <i aria-hidden="true" />
-            분양대금 수위 <b>{eok(w.level, 0)}원</b>
+            분양대금 수위 <b>{eok(w.level, 0)}</b>
             <small>분양수입 + 출자·대여 + 예치금이자</small>
           </p>
           {gl === "ok" && <p className="stack-hint">끌어서 회전</p>}
@@ -387,8 +387,8 @@ export function CapitalStack() {
       </div>
 
       <p className="stack-note">
-        아래층부터 채워지고 손실은 위층(가장 후순위)부터 흡수합니다. 본PF 미상환분이 생기면 미분양담보대출(한도 400억)로 대환되며
-        그 이자가 사업비에 더해집니다{w.unsoldDraw > 0 ? ` — 현재 대환 ${eok(w.unsoldDraw, 0)}원` : ""}. 층 높이는 금액에 비례합니다.
+        아래층부터 채워지고 손실은 위층(가장 후순위)부터 흡수합니다. 본PF 미상환분이 생기면 미분양담보대출(한도 400억원)로 대환되며
+        그 이자가 사업비에 더해집니다{w.unsoldDraw > 0 ? ` — 현재 대환 ${eok(w.unsoldDraw, 0)}` : ""}. 층 높이는 금액에 비례합니다.
       </p>
     </figure>
   );

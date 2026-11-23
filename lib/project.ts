@@ -58,7 +58,7 @@ export const COST_ITEMS: CostItem[] = [
   { group: "I. 토지비", name: "토지취득세", amount: 4140, basis: "취득세율 4.6%", kind: "fixed" },
   { group: "I. 토지비", name: "토지용역비", amount: 1850, basis: "사업팀 산정", kind: "fixed" },
   { group: "I. 토지비", name: "감정평가수수료", amount: 96, basis: "사업팀 산정", kind: "fixed" },
-  { group: "II. 직접공사비", name: "직접공사비", amount: 189000, basis: "도급계약서 (유보금 42,000 포함)", kind: "fixed" },
+  { group: "II. 직접공사비", name: "직접공사비", amount: 189000, basis: "도급계약서 (유보금 42,000백만원 포함)", kind: "fixed" },
   { group: "III. 간접공사비", name: "설계비", amount: 2980, basis: "사업팀 산정", kind: "fixed" },
   { group: "III. 간접공사비", name: "감리비", amount: 3420, basis: "사업팀 산정", kind: "fixed" },
   { group: "III. 간접공사비", name: "예술장식품설치비", amount: 311, basis: "사업팀 산정", kind: "fixed" },

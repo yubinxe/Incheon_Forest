@@ -1046,3 +1046,7 @@ section[id], #risk-contractor { scroll-margin-top: calc(var(--gnb-h) + 16px); }
   .stack-note { padding: 12px 20px 18px; }
 }
 @media print { .stack-3d { display: none; } .stack-grid { grid-template-columns: 1fr; } .wl { border: 0; } }
+
+/* 숫자 뒤 단위 */
+.u { margin-left: 2px; font-size: 0.78em; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.heat .u, .neg .u { color: inherit; opacity: 0.7; }
