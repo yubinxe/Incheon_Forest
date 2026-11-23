@@ -59,6 +59,7 @@ type Shot = {
   night: number; // 0 낮 ~ 1 밤
   lit: number | "live"; // 창 점등률 (= 분양률)
   fov: number;
+  flow?: number; // 차량 흐름 속도 배수 (기본 1) — 원경 장면은 느리게
 };
 
 export const SHOTS: Shot[] = [
@@ -67,9 +68,9 @@ export const SHOTS: Shot[] = [
   { pos: [-170, 7, 470], look: [0, 46, 0], sun: 6, night: 0.02, lit: 0, fov: 36 }, // 2 호수 수면
   { pos: [150, 70, 150], look: [10, 52, 20], sun: 0.5, night: 0.35, lit: 0.35, fov: 40 }, // 3 입면
   { pos: [-300, 120, 420], look: [0, 42, 0], sun: -7, night: 1, lit: 0.799, fov: 36 }, // 4 밤 — 상환한계 점등
-  { pos: [-380, 230, 560], look: [0, 30, 40], sun: -9, night: 1, lit: "live", fov: 34 }, // 5 문서
-  { pos: [-40, 34, 330], look: [0, 50, 0], sun: -10, night: 1, lit: "live", fov: 38 }, // 6 계산기
-  { pos: [620, 420, -380], look: [0, 0, 60], sun: -12, night: 1, lit: "live", fov: 34 }, // 7 맺음
+  { pos: [-380, 230, 560], look: [0, 30, 40], sun: -9, night: 1, lit: "live", fov: 34, flow: 0.6 }, // 5 문서
+  { pos: [-40, 34, 330], look: [0, 50, 0], sun: -10, night: 1, lit: "live", fov: 38, flow: 0.6 }, // 6 계산기
+  { pos: [620, 420, -380], look: [0, 0, 60], sun: -12, night: 1, lit: "live", fov: 34, flow: 0.18 }, // 7 맺음 — 원경에서 차가 튀어 보이지 않게 거의 정지
 ];
 
 const ease = (t: number) => t * t * (3 - 2 * t);
@@ -355,6 +356,8 @@ export default function Scene() {
     const fogCol = new THREE.Color();
 
     const clock = new THREE.Clock();
+    let trafficT = 0;
+    let curFlow = 1;
     let flyStart = 0;
     let prevSun = 999;
     let shadowTick = 0;
@@ -403,10 +406,13 @@ export default function Scene() {
 
       // 4D — 시간에 따라 흐르는 것들
       const flow = reduce ? 0 : elapsed;
+      // 차량은 장면별 속도 배수로 적분 — 배수가 바뀌어도 위치가 튀지 않는다
+      curFlow = lerp(curFlow, lerp(A.flow ?? 1, B.flow ?? 1, k), damp);
+      trafficT += dt * curFlow;
       clouds.uniforms.uTime.value = flow;
       cloudShadow.uniforms.uTime.value = flow;
       windTime.value = flow;
-      traffic.update(flow);
+      traffic.update(reduce ? 0 : trafficT);
 
       camera.position.copy(cur.pos);
       camera.lookAt(cur.look);

@@ -145,3 +145,59 @@ export function tornado(s: Scenario) {
 }
 
 const pctS = (v: number) => `${(v * 100).toFixed(1)}%`;
+
+/* ───────── 상환 워터폴 (자금 집행 순서) ───────── */
+
+export type TierKey = "cost" | "trA" | "trB" | "retention" | "devLoan" | "profit";
+export type Tier = {
+  key: TierKey;
+  label: string;
+  holder: string; // 누구의 돈인가
+  amount: number; // 백만원 (profit 은 잔여)
+  base: number; // 탑에서의 바닥 높이 (백만원)
+  filled: number; // 0~1 — 분양대금이 이 층을 채운 비율
+  loss: number; // 미상환액 (백만원)
+};
+
+/**
+ * 분양대금(+기타유입)이 아래층부터 채우는 상환 워터폴.
+ * 손실은 위층(가장 후순위)부터 흡수: 시행사 대여금 → 공사비 유보금 → Tr-B 중순위 → Tr-A 선순위.
+ * 기말현금 = 수위 − (이익 층 바닥) 과 정확히 같다.
+ */
+export function waterfall(s: Scenario) {
+  const r = endingCash(s);
+  const level = r.inflow - r.offset; // 분양수입 + 출자·대여 + 예치금이자
+  const claims = r.outflow - r.offset; // 고정비 + 변동비 + 미분양담보대출 이자
+  const trA = LOANS.find((l) => l.name.startsWith("Tr-A"))!.limit;
+  const trB = LOANS.find((l) => l.name.startsWith("Tr-B"))!.limit;
+  const sub = SUBORDINATED.retention + SUBORDINATED.developerLoan;
+  const spec: [TierKey, string, string, number][] = [
+    ["cost", "사업비 · 금융비용", "토지 · 공사기성 · 제세 · 이자", claims - sub - trA - trB],
+    ["trA", "Tr-A 선순위 본PF", "선순위 대주단", trA],
+    ["trB", "Tr-B 중순위 본PF", "중순위 대주단", trB],
+    ["retention", "공사비 유보금", "시공사 (후순위)", SUBORDINATED.retention],
+    ["devLoan", "시행사 대여금", "시행사 (최후순위)", SUBORDINATED.developerLoan],
+  ];
+  let base = 0;
+  const tiers: Tier[] = spec.map(([key, label, holder, amount]) => {
+    const filled = Math.min(1, Math.max(0, (level - base) / amount));
+    const t = { key, label, holder, amount, base, filled, loss: amount * (1 - filled) };
+    base += amount;
+    return t;
+  });
+  const profit = Math.max(0, level - claims);
+  tiers.push({ key: "profit", label: "시행사 이익", holder: "시행사 지분", amount: profit, base: claims, filled: 1, loss: 0 });
+  const lossBy = (k: TierKey) => tiers.find((t) => t.key === k)!.loss;
+  return {
+    level,
+    claims,
+    cash: r.cash,
+    tiers,
+    profit,
+    lenderLoss: lossBy("trA") + lossBy("trB"),
+    subLoss: lossBy("retention") + lossBy("devLoan"),
+    unsoldDraw: r.unsoldDraw,
+    /** 수위가 닿은 가장 높은 층 */
+    reached: (level >= claims ? "profit" : [...tiers].reverse().find((t) => t.key !== "profit" && t.filled > 0)?.key ?? "cost") as TierKey,
+  };
+}
