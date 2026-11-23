@@ -16,6 +16,8 @@ npm run build                # 키 없이도 통과 — 빌드 시 API 미호출
 
 배포: Vercel 프로젝트 환경변수 `DATA_GO_KR_SERVICE_KEY` 또는 zipcatch와 같은 `DATA_GO_KR_API_KEY` 설정 → 재배포. `vercel.json`은 서울 리전(`icn1`).
 
+지도: `NEXT_PUBLIC_KAKAO_MAP_JS_KEY`(zipcatch와 같은 카카오 앱 JS 키). 카카오 개발자 콘솔 › 앱 설정 › 플랫폼 › Web › 사이트 도메인에 `https://incheon-forest.vercel.app`(로컬은 `http://localhost:3000`)을 등록해야 표시됩니다. 키가 없거나 로드 실패 시 02 입지환경은 개념도로 대체됩니다. 주변 시설 좌표는 카카오 장소 검색 결과, 사업지는 가상 사업장의 개념 위치입니다.
+
 ## ① 입력값 산출 (단위 백만원)
 
 | 공란 | 산식 | 값 | 구분 |
@@ -63,6 +65,6 @@ components/scene/*        three.js 매스 · 호수(반사) · 하늘 · 야간 
 
 ## 보안
 
-- 인증키는 `.env.local` · Vercel 환경변수에만. `NEXT_PUBLIC_` 미사용, `server-only`로 호출부 격리.
+- 인증키는 `.env.local` · Vercel 환경변수에만. 공공데이터 키는 `NEXT_PUBLIC_` 미사용, `server-only`로 호출부 격리. 예외는 도메인 제한형 카카오 지도 JS 키 1종(`lib/kakao.ts`에서만 참조 — 테스트로 강제).
 - 브라우저는 지역명만 전송(한글·숫자·공백 40자 검증).
 - `npm test` 보안 테스트: 공개 환경변수 사용 0건, 하드코딩 키 패턴 0건, 빌드 산출물 키 문자열 0건(키 설정 환경).
