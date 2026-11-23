@@ -126,24 +126,29 @@ code, .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; fon
 
 /* ───────── 퀵메뉴 ───────── */
 .quick {
-  position: fixed; right: 20px; top: 50%; z-index: 30; display: flex; flex-direction: column;
+  position: fixed; right: 12px; top: 50%; z-index: 30; display: flex; flex-direction: column; width: 88px;
   transform: translate(calc(100% + 24px), -50%); transition: transform .5s var(--ease);
-  box-shadow: 0 14px 34px rgba(14, 26, 46, 0.22); border-top: 1px solid var(--gold-soft);
+  background: rgba(9, 15, 27, 0.9); box-shadow: 0 14px 34px rgba(14, 26, 46, 0.22); border-top: 2px solid var(--gold);
 }
 .quick.is-on { transform: translate(0, -50%); }
+.q-head { margin: 0; padding: 10px 0 8px; text-align: center; font-size: 11.5px; font-weight: 600; letter-spacing: .08em; color: rgba(255, 255, 255, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
 .quick a, .quick button {
-  position: relative; display: flex; align-items: center; justify-content: center; width: 68px; height: 56px;
-  font: inherit; text-decoration: none; cursor: pointer; border: 0; background: rgba(9, 15, 27, 0.88); color: #fff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1); transition: background .25s, color .25s;
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 58px; padding: 8px 4px; font: inherit; text-align: center; text-decoration: none; cursor: pointer;
+  border: 0; background: transparent; color: #fff; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background .25s var(--ease), color .25s var(--ease);
 }
-.quick b { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
-.quick span {
-  position: absolute; right: calc(100% + 10px); top: 50%; transform: translate(6px, -50%); white-space: nowrap;
-  background: var(--ink); color: #fff; font-size: 14.5px; font-weight: 500; padding: 7px 12px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
-}
-.quick a:hover span, .quick button:hover span, .quick a:focus-visible span, .quick button:focus-visible span { opacity: 1; transform: translate(0, -50%); }
+.quick small { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--gold-soft); line-height: 1; }
+.quick b { font-size: 13.5px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; word-break: keep-all; }
+.quick a::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; background: var(--gold-soft); opacity: 0; transition: opacity .25s var(--ease); }
+.quick a[aria-current]::before { opacity: 1; }
+.quick a[aria-current] { background: rgba(214, 195, 155, 0.14); }
 .quick a:hover, .quick button:hover { background: var(--navy-2); color: var(--gold-soft); }
-.quick .q-top { background: var(--gold); color: #fff; border-bottom: 0; }
+.quick a:focus-visible, .quick button:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: -2px; }
+.quick .q-util { min-height: 46px; }
+.quick .q-util b { font-size: 12.5px; color: rgba(255, 255, 255, 0.82); }
+.quick .q-top { min-height: 46px; background: var(--gold); color: #fff; border-bottom: 0; }
+.quick .q-top b { font-size: 12.5px; }
 .quick .q-top:hover { background: #866b3c; color: #fff; }
 
 main { position: relative; z-index: 2; }
@@ -667,7 +672,7 @@ html[data-cine="1"] .letterbox { height: 5.5vh; }
 .film-cover h1, .cover-sub, .cover-kicker { text-shadow: 0 2px 22px rgba(4, 8, 16, 0.45); }
 .btn-ghost { background: rgba(8, 14, 26, 0.45); }
 .skip-film {
-  position: fixed; right: var(--gutter); bottom: 28px; z-index: 15;
+  position: fixed; left: var(--gutter); bottom: var(--skip-b, 28px); z-index: 15;
   display: inline-flex; align-items: center; gap: 10px;
   padding: 11px 18px; font-size: 15px; font-weight: 600; color: #fff; text-decoration: none;
   background: rgba(10, 18, 32, 0.78); border: 1px solid rgba(214, 195, 155, 0.55);
@@ -675,6 +680,7 @@ html[data-cine="1"] .letterbox { height: 5.5vh; }
 }
 .skip-film:hover { border-color: var(--gold-soft); }
 .skip-film[data-hidden] { opacity: 0; transform: translateY(12px); pointer-events: none; }
+.skip-film { transition: opacity .5s var(--ease), transform .5s var(--ease), border-color .25s, bottom .2s linear; }
 
 /* 표본 편향 · 링크 버튼 · 소제목 */
 .h4 { margin: 28px 0 10px; font-size: 16.5px; font-weight: 700; color: var(--navy); }

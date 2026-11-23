@@ -32,6 +32,10 @@ export default function FilmFx() {
       if (skip && paper) {
         if (paper.getBoundingClientRect().top < innerHeight * 0.9) skip.setAttribute("data-hidden", "");
         else skip.removeAttribute("data-hidden");
+        // 표지 하단 키바가 보이는 동안은 그 위로 올려 겹치지 않게
+        const kb = document.querySelector<HTMLElement>(".keybar")?.getBoundingClientRect();
+        const lift = kb && kb.top < innerHeight && kb.bottom > 0 ? Math.round(innerHeight - kb.top) + 20 : 28;
+        skip.style.setProperty("--skip-b", `${lift}px`);
       }
     };
     const onScroll = () => {
