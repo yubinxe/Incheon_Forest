@@ -10,6 +10,7 @@ export default function SmoothScroll() {
     if (matchMedia("(pointer: coarse)").matches) return; // 터치 기기는 네이티브 스크롤
     const lenis = new Lenis({ duration: 1.25, easing: (t) => 1 - Math.pow(1 - t, 4), wheelMultiplier: 0.9 });
     document.documentElement.style.scrollBehavior = "auto";
+    (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
     let raf = 0;
     const loop = (t: number) => {
       lenis.raf(t);
@@ -32,6 +33,7 @@ export default function SmoothScroll() {
       cancelAnimationFrame(raf);
       document.removeEventListener("click", onClick);
       lenis.destroy();
+      delete (window as unknown as { __lenis?: Lenis }).__lenis;
       document.documentElement.style.scrollBehavior = "";
     };
   }, []);

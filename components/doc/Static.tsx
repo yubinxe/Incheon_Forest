@@ -13,6 +13,7 @@ import {
 import { CONTRACT, CONTRACTOR_FIN as F, LOANS, PROJECT, RATES, UNIT_TYPES, COMMERCIAL } from "@/lib/project";
 import { eok, m, pct } from "@/lib/format";
 import { SectionHead } from "./Heads";
+import { ContractorLiquidity, PmDecision } from "./Present";
 export { SectionHead };
 
 const kindLabel = { fixed: "고정", variable: "변동", offset: "상쇄" } as const;
@@ -252,6 +253,7 @@ export function Opinion() {
   return (
     <section id="opinion" className="doc-sec" data-shot="5">
       <SectionHead no="08" group="검토의견" title="리스크와 의견" lede="리스크마다 근거 숫자 · 현실화 조건 · 완화 방안을 붙였습니다. 확약이 있다는 것과 이행할 능력이 있다는 것은 다른 문제입니다." />
+      <ContractorLiquidity />
 
       <ol className="risks">
         <li>
@@ -349,6 +351,7 @@ export function Opinion() {
           <li><b>유동성 장치.</b> 미분양담보대출 실행조건 확정, 이자상환적립계정 3개월분 유지, 중도금 집단대출 협약 선확보.</li>
         </ol>
       </div>
+      <PmDecision />
     </section>
   );
 }

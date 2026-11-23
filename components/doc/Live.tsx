@@ -237,12 +237,38 @@ export function Calculator() {
   ];
   if (applied?.price && applied.rate) presets.push(["적용가 · 적용률", applied.price, applied.rate]);
   const commOptions: [string, number | null][] = [["아파트와 동일", null], ["100%", 1], ["50%", 0.5], ["0%", 0]];
+  // 발표용 원클릭 시나리오 — 희망가 고정, 분양률만 정확한 값으로 세팅 (슬라이더 미세 조작 불필요)
+  const pfExact = breakevenRate(HOPE_AVG_PER_PY, PF_LIMIT_TARGET, undefined, commRate ?? undefined);
+  const full = endingCash({ aptPerPy: HOPE_AVG_PER_PY, salesRate: 1, commercialRate: commRate ?? undefined });
+  const stage: { key: string; title: string; sub: string; rate: number }[] = [
+    { key: "full", title: "100% 완판", sub: `기말현금 ${eok(full.cash, 0)} · ${pct(full.cash / full.revenue)}`, rate: 1 },
+    { key: "pf", title: `${pct(pfExact)} 상환 한계선`, sub: "본PF 마지노선", rate: pfExact + 1e-9 },
+    { key: "stress", title: "75.0% 스트레스", sub: "미분양대출 9% 발동", rate: 0.75 },
+  ];
+  const onStage = (x: number) => Math.abs(price - HOPE_AVG_PER_PY) < 0.05 && Math.abs(rate - x) < 0.0002;
 
   return (
     <section id="calculator" className="window-sec" data-shot="6" data-see="1">
       <div className="calc">
         <p className="eyebrow">05-1 분양률 계산기 · 창 하나가 한 세대입니다</p>
         <h2>불이 켜진 만큼 팔렸습니다</h2>
+        <div className="stage" role="group" aria-label="원클릭 시나리오">
+          {stage.map((st) => (
+            <button key={st.key} type="button" className={`stage-${st.key}`} aria-pressed={onStage(st.rate)} onClick={() => { setPrice(HOPE_AVG_PER_PY); setRate(st.rate); }}>
+              <b>{st.title}</b>
+              <span>{st.sub}</span>
+            </button>
+          ))}
+        </div>
+        {zone === "pf-shortfall" ? (
+          <p className="stage-alert" role="alert">
+            <span aria-hidden="true">⚠</span> 본PF(1,300억) 상환 부족 구간 진입 — 연 9.0% 미분양담보대출(한도 400억) 발동 및 시행사 마진 소멸
+          </p>
+        ) : rate >= 0.9995 ? (
+          <p className="stage-insight">
+            완판 기준 기말현금 {eok(r.cash, 0)} (분양수입 대비 {pct(r.cash / r.revenue)}) — 하방 충격 흡수 여력 제한적
+          </p>
+        ) : null}
         <div className="slider">
           <label htmlFor="rate">분양률 <output>{pct(rate)}</output></label>
           <input id="rate" type="range" min={0.4} max={1} step="any" value={rate} onChange={(e) => setRate(Math.round(Number(e.target.value) * 1000) / 1000)} />

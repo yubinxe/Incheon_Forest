@@ -2,6 +2,7 @@ import Scene from "@/components/scene/Scene";
 import FilmFx from "@/components/FilmFx";
 import Header from "@/components/site/Header";
 import QuickMenu from "@/components/site/QuickMenu";
+import PresenterBar from "@/components/site/PresenterBar";
 import Intro from "@/components/site/Intro";
 import SmoothScroll from "@/components/site/SmoothScroll";
 import { PlanProvider } from "@/components/plan/PlanProvider";
@@ -43,6 +44,7 @@ export default function Page() {
       <div className="scene-veil" aria-hidden="true" />
       <Header baseDate={PROJECT.baseDate} />
       <QuickMenu />
+      <PresenterBar />
       <a id="skip-film" href="#overview" className="skip-film">3D 투어 건너뛰고 사업개요 보기 ↓</a>
 
       <main id="top">
