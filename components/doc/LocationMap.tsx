@@ -8,7 +8,7 @@ const POIS: { key: string; q: string; label: string; cat: string; prefer?: strin
   { key: "park", q: "청라호수공원", label: "청라호수공원", cat: "공원" },
   { key: "station", q: "청라국제도시역", label: "청라국제도시역", cat: "공항철도", prefer: "SW8" },
   { key: "ic", q: "청라IC", label: "청라IC", cat: "공항고속도로" },
-  { key: "canal", q: "청라 커낼웨이", label: "커낼웨이", cat: "수변상가" },
+  { key: "canal", q: "청라커낼웨이", label: "커낼웨이", cat: "수변상가" },
 ];
 const CENTER = { lat: 37.536, lng: 126.645 }; // 청라국제도시 — 검색 기준점
 /** 사업지는 교육용 가상 사업장. 호수공원 중심점에서 북측으로 약 600m 띄운 개념 위치. */
@@ -62,7 +62,8 @@ export function LocationMap({ diagram }: { diagram: ReactNode }) {
         new Promise<{ lat: number; lng: number } | null>((res) =>
           !places ? res(null) : places.keywordSearch(
             p.q,
-            (data: { x: string; y: string; category_group_code?: string }[], st: string) => {
+            (raw: { x: string; y: string; place_name: string; category_group_code?: string }[], st: string) => {
+              const data = (raw ?? []).filter((d) => !/오피스텔|아파트|빌딩|타워|주차|더휴|레지던스/.test(d.place_name));
               if (st !== kakao.maps.services.Status.OK || !data.length) return res(null);
               const hit = (p.prefer && data.find((d) => d.category_group_code === p.prefer)) || data[0];
               res({ lat: Number(hit.y), lng: Number(hit.x) });
