@@ -182,7 +182,7 @@ function Feasibility({ f, rate }: { f: ReturnType<typeof feasibility>; rate: num
 function Investment({ v }: { v: ReturnType<typeof investment> }) {
   const [hover, setHover] = useState<number | null>(null);
   const rows = v.rows;
-  const W = 760, H = 260, P = { l: 40, r: 12, t: 16, b: 30 };
+  const W = 760, H = 260, P = { l: 58, r: 12, t: 22, b: 30 };
   const lo = Math.min(...rows.map((r) => r.cum), -v.pf * 1.02);
   const hi = Math.max(0, ...rows.map((r) => r.cum));
   const xs = (i: number) => P.l + ((W - P.l - P.r) * i) / (rows.length - 1);
@@ -207,6 +207,13 @@ function Investment({ v }: { v: ReturnType<typeof investment> }) {
             <b>차입 전 누적현금</b> — 최저점이 차입으로 메워야 할 최대 자금 부족(Peak Funding)
           </figcaption>
           <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`최대 자금 부족 ${eok(v.peak, 0)} (${v.peakQ}), 본PF 한도 ${eok(v.pf, 0)}`} onMouseLeave={() => setHover(null)}>
+            {[-1500, -1000, -500, 500].filter((t) => t * 100 > lo && t * 100 < hi).map((t) => (
+              <g key={t}>
+                <line x1={P.l} x2={W - P.r} y1={ys(t * 100)} y2={ys(t * 100)} className="grid" />
+                <text x={P.l - 8} y={ys(t * 100) + 4} textAnchor="end" className="tick">{m(t)}</text>
+              </g>
+            ))}
+            <text x={P.l - 8} y={P.t - 4} textAnchor="end" className="tick">억원</text>
             <line x1={P.l} x2={W - P.r} y1={ys(0)} y2={ys(0)} className="ax0" />
             <line x1={P.l} x2={W - P.r} y1={ys(-v.pf)} y2={ys(-v.pf)} className="pfline" />
             <text x={W - P.r} y={ys(-v.pf) - 6} textAnchor="end" className="lbl">본PF 한도 −{eok(v.pf, 0)}</text>

@@ -99,10 +99,10 @@ export function buildTraffic(roads: Road[], max: number) {
       if (c.dir < 0) s = c.len - s;
       const a = c.from + s;
       if (c.axis === 0) {
-        p.set(a, 0.3, c.fixed);
+        p.set(a, 0.45, c.fixed);
         q.copy(qs[c.dir > 0 ? 0 : 1]);
       } else {
-        p.set(c.fixed, 0.3, a);
+        p.set(c.fixed, 0.33, a);
         q.copy(qs[c.dir > 0 ? 2 : 3]);
       }
       m4.compose(p, q, one);

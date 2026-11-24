@@ -95,7 +95,7 @@ export function buildCloudShadows() {
   });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), mat);
   mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set(0, 0.42, 0);
+  mesh.position.set(0, 0.95, 0);
   mesh.renderOrder = 1;
   return { mesh, uniforms };
 }

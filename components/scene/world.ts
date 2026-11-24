@@ -642,6 +642,14 @@ function groundTexture() {
 
 export const COAST_X = -1500;
 
+/** 지면 위 평면 레이어 — 높이 차이와 함께 깊이 오프셋을 줘 원거리 z-fighting(깜빡임)을 막는다 */
+function layer<T extends THREE.Material>(m: T, k: number): T {
+  m.polygonOffset = true;
+  m.polygonOffsetFactor = -k;
+  m.polygonOffsetUnits = -k * 4;
+  return m;
+}
+
 /** 도로망 [중심 x, 중심 z, 동서 길이, 남북 길이] — 차량 흐름과 공유 */
 export const ROADS: [number, number, number, number][] = [
   [0, -110, 3600, 26],
@@ -736,33 +744,33 @@ export function buildContext(opt: { buildings: number; trees: number } = { build
         return sh;
       })(),
     ),
-    new THREE.MeshStandardMaterial({ color: "#64744c", roughness: 1 }),
+    layer(new THREE.MeshStandardMaterial({ color: "#64744c", roughness: 1 }), 1),
   );
   park.rotation.x = -Math.PI / 2;
-  park.position.set(LAKE_CENTER.x, 0.15, LAKE_CENTER.z);
+  park.position.set(LAKE_CENTER.x, 0.12, LAKE_CENTER.z);
   park.receiveShadow = true;
   group.add(park);
   // 호숫가 산책로
   const path = new THREE.Mesh(
     new THREE.RingGeometry(1.0, 1.045, 96),
-    new THREE.MeshStandardMaterial({ color: "#d3c7ae", roughness: 0.95 }),
+    layer(new THREE.MeshStandardMaterial({ color: "#d3c7ae", roughness: 0.95 }), 2),
   );
   path.rotation.x = -Math.PI / 2;
   path.scale.set(560, 182, 1);
-  path.position.set(LAKE_CENTER.x, 0.3, LAKE_CENTER.z);
+  path.position.set(LAKE_CENTER.x, 0.24, LAKE_CENTER.z);
   group.add(path);
 
   // 커낼웨이 — 호수에서 동쪽으로 이어지는 수로
-  const canalMat = new THREE.MeshStandardMaterial({ color: "#23394a", roughness: 0.12, metalness: 0.9 });
+  const canalMat = layer(new THREE.MeshStandardMaterial({ color: "#23394a", roughness: 0.12, metalness: 0.9 }), 2);
   const canal = new THREE.Mesh(new THREE.PlaneGeometry(1500, 34), canalMat);
   canal.rotation.x = -Math.PI / 2;
   canal.rotation.z = 0.22;
-  canal.position.set(1120, 0.32, 150);
+  canal.position.set(1120, 0.26, 150);
   group.add(canal);
 
   // 도로 — 차선 표시
   const roadTex = roadTexture();
-  const walkMat = new THREE.MeshStandardMaterial({ color: "#bdb6a6", roughness: 0.95 });
+  const walkMat = layer(new THREE.MeshStandardMaterial({ color: "#bdb6a6", roughness: 0.95 }), 3);
   for (const [x, z, w, d] of ROADS) {
     const along = w > d;
     const tex = roadTex.clone();
@@ -770,20 +778,22 @@ export function buildContext(opt: { buildings: number; trees: number } = { build
     tex.rotation = along ? Math.PI / 2 : 0;
     tex.center.set(0.5, 0.5);
     tex.repeat.set(1, Math.max(w, d) / 40);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }));
+    // 교차로에서 동서·남북 도로가 같은 높이로 겹치면 깜빡이므로 높이와 깊이 오프셋을 분리한다
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), layer(new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }), along ? 6 : 5));
     m.rotation.x = -Math.PI / 2;
-    m.position.set(x, 0.2, z);
+    m.position.set(x, along ? 0.62 : 0.5, z);
     m.receiveShadow = true;
     group.add(m);
     const sw = new THREE.Mesh(new THREE.PlaneGeometry(along ? w : d === 0 ? 0 : w + 12, along ? d + 12 : d), walkMat);
     sw.rotation.x = -Math.PI / 2;
-    sw.position.set(x, 0.18, z);
+    sw.position.set(x, 0.34, z);
     sw.receiveShadow = true;
     group.add(sw);
   }
 
   // 경인아라뱃길 — 청라 북측을 동서로 지나는 운하
   const araMat = new THREE.MeshStandardMaterial({ color: "#26394a", roughness: 0.1, metalness: 0.9 });
+  layer(araMat, 2);
   const ara = new THREE.Mesh(new THREE.PlaneGeometry(6000, 90), araMat);
   ara.rotation.x = -Math.PI / 2;
   ara.position.set(COAST_X + 3000, 0.3, -2150);
@@ -792,7 +802,7 @@ export function buildContext(opt: { buildings: number; trees: number } = { build
   for (const dz of [-70, 70]) {
     const bank = new THREE.Mesh(new THREE.PlaneGeometry(6000, 50), bankMat);
     bank.rotation.x = -Math.PI / 2;
-    bank.position.set(COAST_X + 3000, 0.22, -2150 + dz);
+    bank.position.set(COAST_X + 3000, 0.12, -2150 + dz);
     group.add(bank);
   }
 

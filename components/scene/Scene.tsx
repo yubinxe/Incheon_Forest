@@ -415,6 +415,12 @@ export default function Scene() {
       traffic.update(reduce ? 0 : trafficT);
 
       camera.position.copy(cur.pos);
+      // 근평면을 고도에 비례해 올려 깊이 정밀도 확보 — 항공 시점의 도로·지면 깜빡임 제거
+      const near = THREE.MathUtils.clamp(cur.pos.y * 0.22, 2, 70);
+      if (Math.abs(camera.near - near) / camera.near > 0.04) {
+        camera.near = near;
+        camera.updateProjectionMatrix();
+      }
       camera.lookAt(cur.look);
       if (Math.abs(camera.fov - cur.fov) > 0.01) {
         camera.fov = cur.fov;

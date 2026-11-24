@@ -22,6 +22,7 @@
   --z-short: #a23a24;
   --serif: "Noto Serif KR Variable", "Noto Serif KR", "AppleMyungjo", serif;
   --sans: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --display: "Wanted Sans Variable", "Wanted Sans", "Pretendard Variable", Pretendard, sans-serif;
   --measure: 64ch;
   --gutter: clamp(20px, 4.4vw, 72px);
   --wrap: 1240px;
@@ -124,32 +125,34 @@ code, .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; fon
 .sheet-foot { margin: 24px 0 0; font-size: 15px; color: var(--muted); }
 .gnb.is-open { background: #fff; color: var(--ink); }
 
-/* ───────── 퀵메뉴 ───────── */
+/* ───────── 퀵메뉴 (아이콘 + 라벨) ───────── */
 .quick {
-  position: fixed; right: 0; top: 50%; z-index: 30; display: flex; flex-direction: column; width: 100px;
+  position: fixed; right: 12px; top: 50%; z-index: 30; width: 84px; display: flex; flex-direction: column;
+  background: #fff; border: 1px solid var(--rule); border-top: 3px solid var(--gold);
+  box-shadow: 0 18px 40px rgba(14, 26, 46, 0.18);
   transform: translate(calc(100% + 24px), -50%); transition: transform .5s var(--ease);
-  background: rgba(9, 15, 27, 0.9); box-shadow: 0 14px 34px rgba(14, 26, 46, 0.22); border-top: 2px solid var(--gold);
 }
 .quick.is-on { transform: translate(0, -50%); }
-.q-head { margin: 0; padding: 12px 0 10px; text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .08em; color: rgba(255, 255, 255, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
-.quick a, .quick button {
-  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  min-height: 68px; padding: 10px 6px; font: inherit; text-align: center; text-decoration: none; cursor: pointer;
-  border: 0; background: transparent; color: #fff; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  transition: background .25s var(--ease), color .25s var(--ease);
+.q-head { margin: 0; padding: 10px 0 9px; text-align: center; font-size: 12.5px; font-weight: 800; letter-spacing: 0.04em; color: #fff; background: var(--ink); }
+.q-item {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 6px 11px;
+  font: inherit; color: var(--ink); background: #fff; border: 0; border-bottom: 1px solid var(--rule);
+  text-decoration: none; cursor: pointer; transition: background .2s, color .2s;
 }
-.quick small { font-size: 12.5px; font-weight: 700; letter-spacing: .04em; color: var(--gold-soft); line-height: 1; }
-.quick b { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; word-break: keep-all; }
-.quick a::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; background: var(--gold-soft); opacity: 0; transition: opacity .25s var(--ease); }
-.quick a[aria-current]::before { opacity: 1; }
-.quick a[aria-current] { background: rgba(214, 195, 155, 0.14); }
-.quick a:hover, .quick button:hover { background: var(--navy-2); color: var(--gold-soft); }
-.quick a:focus-visible, .quick button:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: -2px; }
-.quick .q-util { min-height: 54px; }
-.quick .q-util b { font-size: 14px; color: rgba(255, 255, 255, 0.82); }
-.quick .q-top { min-height: 54px; background: var(--gold); color: #fff; border-bottom: 0; }
-.quick .q-top b { font-size: 14px; }
-.quick .q-top:hover { background: #866b3c; color: #fff; }
+.q-ico { width: 30px; height: 30px; display: grid; place-items: center; color: var(--navy); }
+.q-ico svg { width: 26px; height: 26px; }
+.q-item b { font-size: 14.5px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
+.q-item small { font-size: 11.5px; font-weight: 500; color: var(--muted); line-height: 1.25; text-align: center; word-break: keep-all; }
+.q-item:hover, .q-item:focus-visible { background: var(--ivory); }
+.q-item:hover .q-ico { color: var(--gold-ink); }
+.q-top { background: var(--navy); color: #fff; border-bottom: 0; }
+.q-top .q-ico { color: var(--gold-soft); }
+.q-top:hover { background: var(--ink); color: #fff; }
+.q-item { position: relative; }
+.q-item::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; background: var(--gold); opacity: 0; transition: opacity .25s var(--ease); }
+.q-item[aria-current]::before { opacity: 1; }
+.q-item[aria-current] { background: var(--ivory); }
+.q-item[aria-current] .q-ico { color: var(--gold-ink); }
 
 main { position: relative; z-index: 2; }
 
@@ -453,7 +456,7 @@ input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.15); }
 .heat th.mark-hope, .heat th.mark-applied { color: var(--navy); background: var(--stone); }
 .cell { position: relative; text-align: right; padding: 14px 14px 14px 30px; font-size: 16px; font-weight: 600; color: var(--ink); transition: outline-color .2s; outline: 2px solid transparent; }
 .cell:hover { outline-color: var(--ink); }
-.cell .glyph { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; }
+.cell .glyph { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; line-height: 1; }
 .cell.surplus { background: color-mix(in srgb, var(--z-surplus) 16%, var(--paper)); }
 .cell.surplus .glyph { color: var(--z-surplus); }
 .cell.subordinated { background: color-mix(in srgb, var(--z-sub) 20%, var(--paper)); }
@@ -654,7 +657,7 @@ html[data-cine="1"] .letterbox { height: 5.5vh; }
 }
 @media print { .intro, .letterbox { display: none !important; } }
 .gnb.is-dark { background: rgba(7, 12, 22, 0.86); box-shadow: 0 1px 0 rgba(214, 195, 155, 0.22); }
-@media (max-width: 1380px) { .quick { display: none; } }
+@media (max-width: 1439px), (max-height: 700px) { .quick { display: none; } }
 @media (max-width: 640px) {
   .film-card { position: sticky; top: calc(var(--gnb-h) + 12px); bottom: auto; margin-top: 58vh; padding: 24px 22px 20px; }
   .film-big { font-size: 50px; }
@@ -706,7 +709,7 @@ html[data-cine="1"] .letterbox { height: 5.5vh; }
 .cf-kpis > div { display: flex; flex-direction: column; gap: 4px; padding: 16px 16px 16px 0; border-bottom: 1px solid var(--rule); }
 .cf-kpis > div + div { padding-left: 16px; border-left: 1px solid var(--rule); }
 .cf-kpis span { font-size: 13.5px; color: var(--muted); }
-.cf-kpis b { font-family: var(--serif); font-size: 24px; color: var(--navy); font-variant-numeric: tabular-nums; }
+.cf-kpis b { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: -0.03em; color: var(--ink); font-variant-numeric: tabular-nums; }
 .cf-kpis small { font-size: 13px; color: var(--muted); }
 .cf-legend { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 0 6px; font-size: 14px; color: var(--muted); }
 .cf-legend span { display: inline-flex; align-items: center; gap: 8px; }
@@ -717,12 +720,12 @@ html[data-cine="1"] .letterbox { height: 5.5vh; }
 .cf-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
 .cf-grid { stroke: rgba(14, 26, 46, 0.08); }
 .cf-zero { stroke: rgba(14, 26, 46, 0.45); }
-.cf-axis { font-size: 12px; fill: var(--muted); font-variant-numeric: tabular-nums; }
-.cf-bar { fill: #c9bfae; }
-.cf-bar.up { fill: #9fb3cf; }
+.cf-axis { font-size: 13px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.cf-bar { fill: color-mix(in srgb, var(--c-bad) 38%, white); }
+.cf-bar.up { fill: color-mix(in srgb, var(--c-good) 38%, white); }
 .cf-cap { fill: none; stroke: var(--gold); stroke-width: 2; stroke-dasharray: 6 5; }
-.cf-line { fill: none; stroke: var(--navy); stroke-width: 2.5; stroke-linejoin: round; }
-.cf-dot { fill: var(--navy); stroke: var(--paper); stroke-width: 2; }
+.cf-chart .cf-line { fill: none; stroke: var(--c-good); stroke-width: 2.5; stroke-linejoin: round; }
+.cf-dot { fill: var(--c-good); stroke: var(--paper); stroke-width: 2; }
 .cf-dot.peak { fill: var(--z-short); }
 .cf-peak { font-size: 13px; font-weight: 700; fill: var(--z-short); }
 .cf-cross { stroke: rgba(14, 26, 46, 0.35); stroke-dasharray: 3 3; }
@@ -739,7 +742,7 @@ html[data-cine="1"] .letterbox { height: 5.5vh; }
 }
 
 /* ───────── 00 핵심 분석 ───────── */
-.core { --c-good: #245ba3; --c-bad: #a23a24; --c-warn: #9a7313; }
+:root { --c-good: #245ba3; --c-bad: #a23a24; --c-warn: #9a7313; }
 .scn { background: var(--ink); color: #fff; padding: 18px 28px 14px; border-top: 1px solid var(--gold-soft); position: sticky; top: calc(var(--gnb-h) + 2px); z-index: 5; box-shadow: 0 18px 30px -24px rgba(14, 26, 46, 0.5); }
 .scn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; }
 .scn-field { display: grid; grid-template-columns: 1fr auto; align-items: baseline; row-gap: 6px; cursor: pointer; }
@@ -1050,3 +1053,25 @@ section[id], #risk-contractor { scroll-margin-top: calc(var(--gnb-h) + 16px); }
 /* 숫자 뒤 단위 */
 .u { margin-left: 2px; font-size: 0.78em; font-weight: 500; color: var(--muted); letter-spacing: 0; }
 .heat .u, .neg .u { color: inherit; opacity: 0.7; }
+
+/* ───────── 서체 체계 ─────────
+   명조(Noto Serif KR) — 히어로·브랜드·결론 문장 같은 포인트에만
+   원티드 산스 — 섹션 제목 · 핵심 수치 · 탭 (또렷한 숫자, 프로젝터 가독성)
+   프리텐다드 — 본문 · 표 · UI · 차트 */
+.sec-head h2 { font-family: var(--display); font-weight: 700; letter-spacing: -0.035em; line-height: 1.22; }
+.h3, .ct-title, .risks h3, .s-top h3, .aside h4, .rules h4, .checks h4 { font-family: var(--display); letter-spacing: -0.025em; }
+.keybar dd, .film-big, .tiles dd, .b-val, .k-value, .applied, .r-value, .scn-v, .ct-value, .c4-val, .fv-v, .liq-big b,
+.blank .b-val, .ledger-row .num, .calc h2, .slider output, .r-break dd, .kv dd, .bar-v {
+  font-family: var(--display); font-feature-settings: "tnum" 1; font-variant-numeric: tabular-nums;
+}
+.keybar dd { font-weight: 700; letter-spacing: -0.02em; }
+.film-big { font-weight: 700; letter-spacing: -0.04em; }
+.tiles dd, .b-val, .k-value, .applied, .scn-v, .c4-val { font-weight: 700; letter-spacing: -0.03em; }
+.r-value { font-weight: 700; letter-spacing: -0.04em; }
+.ct-value, .fv-v { font-weight: 800; letter-spacing: -0.035em; }
+.liq-big b { font-weight: 800; letter-spacing: -0.045em; }
+.calc h2 { font-weight: 700; letter-spacing: -0.03em; }
+.cf-mini svg, .wf svg, .tor svg, .cf-chart svg, .heat { font-family: var(--sans); font-feature-settings: "tnum" 1; }
+.core .grid { stroke: rgba(14, 26, 46, 0.08); }
+.cf-legend .lg-bar { background: linear-gradient(90deg, color-mix(in srgb, var(--c-good) 38%, white) 50%, color-mix(in srgb, var(--c-bad) 38%, white) 50%) !important; }
+.cf-legend .lg-line { background: var(--c-good) !important; }
